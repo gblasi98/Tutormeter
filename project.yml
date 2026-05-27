@@ -55,6 +55,10 @@ targets:
           enabled: false
         com.apple.developer.carplay-audio:
           enabled: false
+        com.apple.developer.carplay-messaging:
+          enabled: false
+        com.apple.developer.playable-content:
+          enabled: false
     info:
       path: Velox/App/Info.plist
       properties:
