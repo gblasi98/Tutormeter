@@ -10,6 +10,7 @@ import Foundation
 /// - SpeedCalculator → Kalman filter
 /// - StateMachine → state transitions
 /// - TrackingManager → Live Activity lifecycle
+@MainActor
 struct IntegrationTests {
 
     @Test("Full session: 60s at 130 km/h, GPS + IMU, all components")

@@ -4,6 +4,7 @@ import Foundation
 
 // MARK: - Deep Link Handler Tests
 
+@MainActor
 struct DeepLinkHandlerTests {
 
     @Test("Valid start-tracking URL is recognized")
@@ -58,6 +59,7 @@ struct DeepLinkHandlerTests {
 
 // MARK: - Tracking Manager Tests
 
+@MainActor
 struct TrackingManagerActivationTests {
 
     @Test("Initial state is not tracking")
