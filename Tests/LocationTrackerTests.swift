@@ -67,6 +67,7 @@ struct LocationErrorTests {
 
 // MARK: - Location Tracker Tests
 
+@MainActor
 struct LocationTrackerTests {
 
     @Test("Initial state is not tracking")
@@ -106,6 +107,7 @@ struct LocationTrackerTests {
 
 // MARK: - State Machine Tests
 
+@MainActor
 struct StateMachineTests {
 
     @Test("Initial state is idle")
