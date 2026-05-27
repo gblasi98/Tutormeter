@@ -24,7 +24,6 @@ import ActivityKit
 /// manager.end(finalSpeed: 125, distance: 15.2, duration: 420)
 /// ```
 @MainActor
-@MainActor
 final class LiveActivityManager {
     // MARK: - State
     private var currentActivity: Activity<VeloxActivityAttributes>?
