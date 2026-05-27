@@ -169,6 +169,7 @@ struct KalmanIntegrationTests {
 
 // MARK: - State Machine Recovery Test
 
+@MainActor
 struct StateMachineRecoveryTests {
 
     @Test("State machine history captures all transitions")
