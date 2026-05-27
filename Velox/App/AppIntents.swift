@@ -341,14 +341,17 @@ final class TrackingManager {
     }
 }
 
-// MARK: - Session Persistence (placeholder)
+// MARK: - Session Persistence
 
-/// Persists completed Tutor sessions via SwiftData.
-/// Full implementation in a future phase.
 extension TrackingManager {
     func saveCompletedSession() async {
         guard let calc = locationTracker?.calculator else { return }
 
-        // Placeholder: save to SwiftData
+        let store = SessionStore()
+        store.incrementSessionCount()
+        store.addDistanceKm(calc.totalDistanceMeters / 1000)
+        store.addTrackingSeconds(calc.elapsedTime())
+
+        // Future: save full TutorRecord to SwiftData
     }
 }
