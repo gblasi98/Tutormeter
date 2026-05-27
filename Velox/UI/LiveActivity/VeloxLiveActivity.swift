@@ -7,7 +7,9 @@ import WidgetKit
 
 /// Static attributes for the Velox Live Activity.
 /// These are set once when the activity starts and never change.
-struct VeloxActivityAttributes: ActivityAttributes {
+struct VeloxActivityAttributes: ActivityAttributes, Sendable {
+    typealias ContentState = VeloxActivityContentState
+
     /// The type of speed zone being monitored.
     enum ZoneType: String, Codable, Sendable {
         case tutor = "Tutor"
