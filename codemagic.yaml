@@ -128,7 +128,7 @@ workflows:
         # - IDFA: No (no ads or tracking)
       email:
         recipients:
-          - you@example.com
+          - CHANGE_ME@example.com  # ← Replace with your email
         notify:
           success: true
           failure: true

@@ -64,10 +64,10 @@ targets:
         CFBundleShortVersionString: "1.0"
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
-        UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities:
           - arm64
-          - location-services
+          - accelerometer
+          - gyroscope
           - gps
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -83,6 +83,10 @@ targets:
         NSSiriUsageDescription: "Velox uses Siri to let you start tracking with a voice command."
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default Configuration
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
 
   VeloxTests:
     type: bundle.unit-test
