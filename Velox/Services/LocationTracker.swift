@@ -13,7 +13,7 @@ import CoreLocation
 ///
 /// Delegates processed GPS fixes to the SpeedCalculator via a callback closure.
 @MainActor
-final class LocationTracker: NSObject, @unchecked Sendable {
+final class LocationTracker: NSObject {
     // MARK: - Dependencies
     private let locationManager: CLLocationManager
     private var speedCalculator: SpeedCalculator

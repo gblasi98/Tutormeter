@@ -20,7 +20,7 @@ import CoreMotion
 /// }
 /// ```
 @MainActor
-final class IMUFilter: @unchecked Sendable {
+final class IMUFilter {
     // MARK: - Dependencies
     private let motionManager: CMMotionManager
 
@@ -252,10 +252,6 @@ final class IMUFilter: @unchecked Sendable {
             biasZ: meanZ,
             noiseVariance: max(avgVariance, 0.001) // floor to avoid zero noise
         )
-    }
-
-    deinit {
-        stop()
     }
 }
 

@@ -24,7 +24,7 @@ import ActivityKit
 /// manager.end(finalSpeed: 125, distance: 15.2, duration: 420)
 /// ```
 @MainActor
-final class LiveActivityManager: @unchecked Sendable {
+final class LiveActivityManager {
     // MARK: - State
     private var currentActivity: Activity<VeloxActivityAttributes>?
     private var updateCount: Int = 0
