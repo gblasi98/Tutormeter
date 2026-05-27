@@ -1,5 +1,7 @@
 import Foundation
 import ActivityKit
+import SwiftUI
+import WidgetKit
 
 // MARK: - Velox Live Activity Attributes
 
