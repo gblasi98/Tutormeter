@@ -4,33 +4,72 @@ import Foundation
 
 /// Core engine for computing average speed in Tutor zones.
 ///
-/// Uses the Haversine formula to calculate the cumulative distance
-/// traveled between GPS fixes, then divides by elapsed time to
-/// produce the average speed.
+/// Uses a Kalman Filter to fuse GPS position measurements with IMU acceleration
+/// data, producing a smooth, accurate velocity estimate even during
+/// short GPS outages (tunnels, urban canyons).
 ///
-/// Includes IMU-assisted dead reckoning for tunnel scenarios
-/// where GPS signal is temporarily lost.
+/// Architecture:
+/// ```
+/// GPS Fix → Haversine distance → KF.update(position) ──┐
+/// IMU Accel → Low-pass filter → KF.predict(accel, dt) ─┤
+///                                                        ├→ avg speed
+///                                                        └→ confidence
+/// ```
 struct SpeedCalculator {
-    // MARK: State
+    // MARK: - Core State
+    private var kf: KalmanFilter1D
     private(set) var totalDistanceMeters: Double = 0.0
+    private(set) var totalKFDistanceMeters: Double = 0.0
     private(set) var startTime: Date?
     private(set) var lastFix: GPSFix?
     private var fixCount: Int = 0
+    private var imuSampleCount: Int = 0
 
-    // MARK: Configuration
-    /// Maximum acceptable horizontal accuracy in meters.
-    /// Fixes worse than this are discarded.
+    /// Previous GPS cumulative position (for detecting KF vs GPS divergence).
+    private var previousGPSPosition: Double = 0.0
+    /// Previous KF position (for tracking KF distance).
+    private var previousKFPosition: Double = 0.0
+
+    // MARK: - Configuration
     static let maxAccuracy: Double = 20.0
-
-    /// If no GPS fix for this many seconds, switch to IMU dead reckoning.
     static let gpsTimeout: TimeInterval = 5.0
-
-    /// Earth's radius in meters (mean radius for Haversine).
     private static let earthRadiusMeters: Double = 6_371_000.0
+
+    // MARK: - Init
+
+    init(
+        initialPosition: Double = 0.0,
+        initialVelocity: Double = 0.0
+    ) {
+        self.kf = KalmanFilter1D(
+            initialPosition: initialPosition,
+            initialVelocity: initialVelocity
+        )
+    }
+
+    /// Reconfigures the Kalman filter with calibration-derived noise parameters.
+    mutating func configureFilter(
+        processNoisePos: Double = 0.1,
+        processNoiseVel: Double = 0.5,
+        measurementNoise: Double = 25.0
+    ) {
+        kf = KalmanFilter1D(
+            initialPosition: kf.position,
+            initialVelocity: kf.velocity,
+            positionUncertainty: kf.positionUncertainty,
+            velocityUncertainty: kf.velocityUncertainty,
+            processNoisePos: processNoisePos,
+            processNoiseVel: processNoiseVel,
+            measurementNoise: measurementNoise
+        )
+    }
 
     // MARK: - GPS Integration
 
     /// Feeds a new GPS fix into the calculator.
+    /// The fix position is converted to a cumulative distance along the road
+    /// and used to update the Kalman filter.
+    ///
     /// - Returns: The updated average speed in km/h, or nil if the fix was rejected.
     @discardableResult
     mutating func processGPSFix(_ fix: GPSFix) -> Double? {
@@ -39,15 +78,17 @@ struct SpeedCalculator {
             return currentAverageSpeedKmh()
         }
 
-        // Initialize start time on first valid fix
+        // Initialize on first valid fix
         if startTime == nil {
             startTime = fix.timestamp
             lastFix = fix
             fixCount = 1
+            previousGPSPosition = 0.0
+            previousKFPosition = 0.0
             return 0.0
         }
 
-        // Calculate distance from last fix
+        // Calculate incremental distance from last fix
         if let previous = lastFix {
             let distance = Self.haversineDistance(
                 lat1: previous.latitude,
@@ -56,12 +97,27 @@ struct SpeedCalculator {
                 lon2: fix.longitude
             )
 
-            // Outlier rejection: skip unrealistic jumps
-            // (e.g., > 100m in 1 second = 360 km/h)
             let timeDelta = fix.timestamp.timeIntervalSince(previous.timestamp)
+
+            // Outlier rejection: skip unrealistic jumps (> 100 m/s = 360 km/h)
             if timeDelta > 0 && (distance / timeDelta) < 100.0 {
                 totalDistanceMeters += distance
                 fixCount += 1
+
+                // Update cumulative GPS position
+                let gpsPosition = previousGPSPosition + distance
+
+                // Kalman filter update with GPS position measurement
+                let gain = kf.update(measurement: gpsPosition)
+
+                // Track KF distance separately (for comparison)
+                let kfDistanceDelta = kf.position - previousKFPosition
+                if kfDistanceDelta > 0 && kfDistanceDelta < 100.0 {
+                    totalKFDistanceMeters += kfDistanceDelta
+                }
+
+                previousGPSPosition = gpsPosition
+                previousKFPosition = kf.position
             }
         }
 
@@ -69,45 +125,62 @@ struct SpeedCalculator {
         return currentAverageSpeedKmh()
     }
 
-    // MARK: - Dead Reckoning (IMU)
+    // MARK: - IMU Integration (Kalman Filter Predict)
 
-    /// Estimates distance traveled using IMU data when GPS is unavailable.
-    /// Uses longitudinal acceleration integrated over time.
+    /// Feeds IMU acceleration data into the Kalman filter's predict step.
+    /// This advances the state estimate between GPS updates, providing
+    /// dead reckoning during signal loss.
     ///
     /// - Parameters:
-    ///   - acceleration: Longitudinal acceleration in m/s² (gravity-compensated).
+    ///   - acceleration: Longitudinal acceleration in m/s² (gravity-compensated, bias-corrected).
     ///   - deltaTime: Time since last IMU sample in seconds.
-    /// - Returns: Estimated distance added in meters.
     @discardableResult
     mutating func processIMU(acceleration: Double, deltaTime: TimeInterval) -> Double {
-        // Simple integration: distance += v * dt + 0.5 * a * dt²
-        // Uses the last known GPS speed as initial velocity (v0).
-        let lastSpeed = lastFix?.speed ?? 0.0
-        let estimatedDistance = lastSpeed * deltaTime + 0.5 * acceleration * deltaTime * deltaTime
+        imuSampleCount += 1
 
-        // Only accumulate if we're in a tunnel/GPS-loss scenario
+        // Kalman filter predict step
+        kf.predict(acceleration: acceleration, deltaTime: deltaTime)
+
+        // If GPS has been lost, the KF predicts without corrections.
+        // We accumulate KF distance even during GPS loss for dead reckoning.
         if let lastGps = lastFix {
             let gpsAge = Date().timeIntervalSince(lastGps.timestamp)
             if gpsAge > Self.gpsTimeout {
-                totalDistanceMeters += max(0, estimatedDistance)
+                let kfDistanceDelta = kf.position - previousKFPosition
+                if kfDistanceDelta > 0 && kfDistanceDelta < 200.0 {
+                    totalKFDistanceMeters += kfDistanceDelta
+                }
+                previousKFPosition = kf.position
             }
         }
 
-        return estimatedDistance
+        return kf.velocity
     }
 
     // MARK: - Average Speed
 
-    /// Returns the current average speed in km/h.
-    /// Returns 0 if tracking hasn't started.
+    /// Returns the average speed in km/h using the KF-smoothed distance.
+    /// Falls back to raw GPS distance if KF has not converged.
     func currentAverageSpeedKmh() -> Double {
         guard let start = startTime else { return 0.0 }
 
         let elapsed = Date().timeIntervalSince(start)
         guard elapsed > 0 else { return 0.0 }
 
-        // km/h = (meters / 1000) / (seconds / 3600)
-        return (totalDistanceMeters / 1000.0) / (elapsed / 3600.0)
+        // Use KF distance if filter has converged, else raw GPS
+        let distance = kf.hasConverged ? totalKFDistanceMeters : totalDistanceMeters
+
+        return (max(distance, 0) / 1000.0) / (elapsed / 3600.0)
+    }
+
+    /// Returns the instantaneous speed from the Kalman filter (m/s).
+    var instantSpeedMs: Double {
+        kf.velocity
+    }
+
+    /// Returns the instantaneous speed in km/h.
+    var instantSpeedKmh: Double {
+        kf.velocity * 3.6
     }
 
     /// Returns the elapsed tracking time in seconds.
@@ -119,23 +192,54 @@ struct SpeedCalculator {
     /// Returns the total number of valid GPS fixes processed.
     func processedFixCount() -> Int { fixCount }
 
-    /// Resets the calculator for a new tracking session.
+    /// Returns the total number of IMU samples processed.
+    func imuProcessedCount() -> Int { imuSampleCount }
+
+    // MARK: - Quality Metrics
+
+    /// Position uncertainty from the Kalman filter (meters).
+    /// Low values (< 3m) indicate high confidence.
+    var positionUncertainty: Double { kf.positionUncertainty }
+
+    /// Velocity uncertainty from the Kalman filter (m/s).
+    var velocityUncertainty: Double { kf.velocityUncertainty }
+
+    /// Whether the Kalman filter has converged to a stable estimate.
+    var hasFilterConverged: Bool { kf.hasConverged }
+
+    /// Whether the filter has diverged (excessive uncertainty).
+    var hasFilterDiverged: Bool { kf.hasDiverged }
+
+    /// Confidence level: 0 (no confidence) to 1 (perfect).
+    var confidenceLevel: Double {
+        if kf.hasDiverged { return 0.0 }
+        let posConf = max(0, 1.0 - kf.positionUncertainty / 10.0)
+        let velConf = max(0, 1.0 - kf.velocityUncertainty / 5.0)
+        return (posConf + velConf) / 2.0
+    }
+
+    /// Difference between raw GPS distance and KF distance (diagnostic).
+    /// Large values suggest the filter needs tuning.
+    var gpsKFDistanceDelta: Double {
+        abs(totalDistanceMeters - totalKFDistanceMeters)
+    }
+
+    // MARK: - Reset
+
     mutating func reset() {
+        kf = KalmanFilter1D()
         totalDistanceMeters = 0.0
+        totalKFDistanceMeters = 0.0
         startTime = nil
         lastFix = nil
         fixCount = 0
+        imuSampleCount = 0
+        previousGPSPosition = 0.0
+        previousKFPosition = 0.0
     }
 
     // MARK: - Haversine Formula
 
-    /// Calculates the great-circle distance between two points
-    /// on the Earth's surface using the Haversine formula.
-    ///
-    /// - Parameters:
-    ///   - lat1, lon1: Coordinates of the first point in degrees.
-    ///   - lat2, lon2: Coordinates of the second point in degrees.
-    /// - Returns: Distance in meters.
     static func haversineDistance(
         lat1: Double, lon1: Double,
         lat2: Double, lon2: Double
@@ -156,22 +260,19 @@ struct SpeedCalculator {
 
 // MARK: - GPS Fix
 
-/// Represents a single GPS position fix with metadata.
 struct GPSFix {
     let latitude: Double
     let longitude: Double
     let horizontalAccuracy: Double // meters
-    let speed: Double              // m/s (instantaneous, from GPS)
+    let speed: Double              // m/s (instantaneous GPS speed)
     let timestamp: Date
     let altitude: Double?
 }
 
-// MARK: - Tutor Record (SwiftData model placeholder)
+// MARK: - Tutor Record
 
 import SwiftData
 
-/// Persisted record of a completed Tutor zone traversal.
-/// Stored locally via SwiftData for privacy.
 @Model
 final class TutorRecord {
     var startDate: Date
@@ -212,12 +313,10 @@ final class TutorRecord {
         self.didEnterTunnel = didEnterTunnel
     }
 
-    /// Time spent in the Tutor zone.
     var duration: TimeInterval {
         endDate.timeIntervalSince(startDate)
     }
 
-    /// Whether the driver exceeded the typical 130 km/h limit.
     var exceededLimit: Bool {
         averageSpeedKmh > 130.0
     }
@@ -226,7 +325,6 @@ final class TutorRecord {
 // MARK: - Double Extension
 
 extension Double {
-    /// Converts degrees to radians.
     var degreesToRadians: Double {
         self * .pi / 180.0
     }
