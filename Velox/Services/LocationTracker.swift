@@ -201,6 +201,7 @@ extension LocationTracker: CLLocationManagerDelegate {
         _ manager: CLLocationManager,
         didFailWithError error: Error
     ) {
+        Task { @MainActor in
         let nsError = error as NSError
         let locError: LocationError
 
@@ -209,7 +210,6 @@ extension LocationTracker: CLLocationManagerDelegate {
             locError = LocationError(.denied, description: error.localizedDescription)
             stopTracking()
         case .locationUnknown:
-            // Temporary issue — GPS may not have a fix yet. Don't stop tracking.
             locError = LocationError(.temporary, description: error.localizedDescription)
         case .network:
             locError = LocationError(.network, description: "Network unavailable for assisted GPS.")
@@ -218,6 +218,7 @@ extension LocationTracker: CLLocationManagerDelegate {
         }
 
         onError?(locError)
+        }
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
