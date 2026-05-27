@@ -159,6 +159,7 @@ struct VeloxAppShortcuts: AppShortcutsProvider {
 /// Manages location services, sensor fusion, and state machine.
 ///
 /// Updated in Phase 3 with Intent support and session summary.
+@MainActor
 @Observable
 final class TrackingManager {
     static let shared = TrackingManager()
