@@ -163,11 +163,12 @@ struct VeloxAppShortcuts: AppShortcutsProvider {
 final class TrackingManager {
     static let shared = TrackingManager()
 
-    // Phase 2 components (initialized on first use)
+    // Phase 2-4 components
     private var locationTracker: LocationTracker?
     private var imuFilter: IMUFilter?
     private var calibrationMgr: CalibrationManager?
     private var stateMachine: TrackingStateMachine
+    private var liveActivityManager: LiveActivityManager?
 
     private(set) var isTracking = false
     private(set) var averageSpeed: Double = 0.0
@@ -179,6 +180,9 @@ final class TrackingManager {
 
     private init() {
         self.stateMachine = TrackingStateMachine()
+        Task {
+            await LiveActivityManager().cleanupOrphanedActivities()
+        }
     }
 
     // MARK: - Public API (called from Intents, UI, URL scheme)
@@ -227,6 +231,15 @@ final class TrackingManager {
                 self?.handleIMU(acceleration: accel, deltaTime: dt)
             }
 
+            // Start Live Activity in Dynamic Island
+            let liveActivity = LiveActivityManager()
+            self.liveActivityManager = liveActivity
+            liveActivity.start(
+                zoneType: .tutor,
+                latitude: tracker.lastLocation?.coordinate.latitude ?? 45.0,
+                longitude: tracker.lastLocation?.coordinate.longitude ?? 9.0
+            )
+
             stateMachine.gpsLockAcquired()
             self.state = stateMachine.currentState
         }
@@ -260,12 +273,24 @@ final class TrackingManager {
         imuFilter?.stop()
 
         let calc = locationTracker?.calculator
+        let finalSpeed = calc?.currentAverageSpeedKmh() ?? 0
+        let finalDistance = (calc?.totalDistanceMeters ?? 0) / 1000
+        let finalDuration = calc?.elapsedTime() ?? 0
+
         let summary = StopSummary(
-            finalAverageSpeedKmh: calc?.currentAverageSpeedKmh() ?? 0,
-            totalDistanceKm: (calc?.totalDistanceMeters ?? 0) / 1000,
-            durationSeconds: calc?.elapsedTime() ?? 0,
+            finalAverageSpeedKmh: finalSpeed,
+            totalDistanceKm: finalDistance,
+            durationSeconds: finalDuration,
             stateSummary: stateMachine.generateSummary()
         )
+
+        // End Live Activity with summary
+        liveActivityManager?.end(
+            finalSpeedKmh: finalSpeed,
+            distanceKm: finalDistance,
+            durationSeconds: finalDuration
+        )
+        liveActivityManager = nil
 
         averageSpeed = 0
         instantSpeed = 0
@@ -291,6 +316,17 @@ final class TrackingManager {
             kalmanDiverged: tracker.calculator.hasFilterDiverged
         )
         state = stateMachine.currentState
+
+        // Push Live Activity update
+        let isLost = stateMachine.isGPSLost
+        liveActivityManager?.update(
+            speedKmh: averageSpeed,
+            instantKmh: instantSpeed,
+            distanceKm: tracker.calculator.totalDistanceMeters / 1000,
+            elapsedSeconds: tracker.calculator.elapsedTime(),
+            confidence: confidence,
+            isGPSLost: isLost
+        )
     }
 
     private func handleIMU(acceleration: Double, deltaTime: TimeInterval) {
