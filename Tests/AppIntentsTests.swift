@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Velox
+@testable import Tutormeter
 
 // MARK: - Deep Link Handler Tests
 

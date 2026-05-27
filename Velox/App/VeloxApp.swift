@@ -63,7 +63,7 @@ struct ContentView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .navigationTitle("Velox")
+            .navigationTitle("Tutormeter")
             .alert("Location Access Required", isPresented: $showAuthAlert) {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {

@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Velox
+@testable import Tutormeter
 
 // MARK: - VeloxActivityContentState Tests
 

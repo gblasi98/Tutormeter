@@ -14,10 +14,10 @@ workflows:
       xcode: "16.0"
       ios_signing:
         distribution_type: development
-        bundle_identifier: com.velox.app
+        bundle_identifier: com.tutormeter.app
       vars:
-        XCODE_PROJECT: Velox.xcodeproj
-        XCODE_SCHEME: Velox
+        XCODE_PROJECT: Tutormeter.xcodeproj
+        XCODE_SCHEME: Tutormeter
         APP_STORE_CONNECT_ISSUER_ID: Encrypted(...)
         APP_STORE_CONNECT_KEY_ID: Encrypted(...)
         APP_STORE_CONNECT_PRIVATE_KEY: Encrypted(...)
@@ -52,10 +52,10 @@ workflows:
           xcodebuild archive \
             -project $XCODE_PROJECT \
             -scheme $XCODE_SCHEME \
-            -archivePath build/ios/archive/Velox.xcarchive \
+              -archivePath build/ios/archive/Tutormeter.xcarchive \
             CODE_SIGN_STYLE=Manual
     artifacts:
-      - build/ios/archive/Velox.xcarchive
+      - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
       - $HOME/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
 
@@ -70,10 +70,10 @@ workflows:
       xcode: "16.0"
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.velox.app
+        bundle_identifier: com.tutormeter.app
       vars:
-        XCODE_PROJECT: Velox.xcodeproj
-        XCODE_SCHEME: Velox
+        XCODE_PROJECT: Tutormeter.xcodeproj
+        XCODE_SCHEME: Tutormeter
         APP_STORE_CONNECT_ISSUER_ID: Encrypted(...)
         APP_STORE_CONNECT_KEY_ID: Encrypted(...)
         APP_STORE_CONNECT_PRIVATE_KEY: Encrypted(...)
@@ -110,10 +110,10 @@ workflows:
           xcodebuild archive \
             -project $XCODE_PROJECT \
             -scheme $XCODE_SCHEME \
-            -archivePath build/ios/archive/Velox.xcarchive \
+              -archivePath build/ios/archive/Tutormeter.xcarchive \
             CODE_SIGN_STYLE=Manual
     artifacts:
-      - build/ios/archive/Velox.xcarchive
+      - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
     publishing:
       app_store_connect:
@@ -143,8 +143,8 @@ workflows:
     environment:
       xcode: "16.0"
       vars:
-        XCODE_PROJECT: Velox.xcodeproj
-        XCODE_SCHEME: Velox
+        XCODE_PROJECT: Tutormeter.xcodeproj
+        XCODE_SCHEME: Tutormeter
     triggering:
       events:
         - pull_request

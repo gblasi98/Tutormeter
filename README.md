@@ -1,14 +1,14 @@
-# Velox — iOS Speed Monitoring
+# Tutormeter — iOS Speed Monitoring
 
 Real-time average speed monitoring for speed camera (Tutor) zones on Italian highways.
 
-> **iOS 17+** · **Swift 5.10** · **Xcode 16** · **106+ tests**
+> **iOS 17+** · **Swift 5.10** · **Xcode 16** · **106+ tests** · Tutormeter
 
 ---
 
 ## What It Does
 
-Velox shows your **average speed** while driving through speed camera zones (Tutor/Autovelox). It works alongside Waze or any navigation app, displaying speed in the **Dynamic Island**, **Lock Screen**, or **CarPlay dashboard**.
+Tutormeter shows your **average speed** while driving through speed camera zones (Tutor/Autovelox). It works alongside Waze or any navigation app, displaying speed in the **Dynamic Island**, **Lock Screen**, or **CarPlay dashboard**.
 
 - 🔴 Alerts when you exceed the 130 km/h limit
 - 🟡 Dead reckoning via IMU when GPS is lost (tunnels)
@@ -20,7 +20,7 @@ Velox shows your **average speed** while driving through speed camera zones (Tut
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                    VeloxApp.swift                     │
+│                    TutormeterApp.swift                     │
 │            (SwiftUI entry + deep links)               │
 └──────────┬──────────────────────────────┬────────────┘
            │                              │
@@ -130,7 +130,7 @@ Velox/
 xcodegen generate --spec project.yml
 
 # Open in Xcode
-open Velox.xcodeproj
+open Tutormeter.xcodeproj
 
 # Run tests
 xcodebuild test \

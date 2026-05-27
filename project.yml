@@ -1,6 +1,6 @@
-name: Velox
+name: Tutormeter
 options:
-  bundleIdPrefix: com.velox
+  bundleIdPrefix: com.tutormeter
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16.0"
@@ -35,8 +35,8 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: Velox/App/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: com.velox.app
-        PRODUCT_NAME: Velox
+        PRODUCT_BUNDLE_IDENTIFIER: com.tutormeter.app
+        PRODUCT_NAME: Tutormeter
         SWIFT_OBJC_BRIDGING_HEADER: ""
         GENERATE_INFOPLIST_FILE: "NO"
     attributes:
@@ -62,8 +62,8 @@ targets:
     info:
       path: Velox/App/Info.plist
       properties:
-        CFBundleName: Velox
-        CFBundleDisplayName: Velox
+        CFBundleName: Tutormeter
+        CFBundleDisplayName: Tutormeter
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0"
         LSRequiresIPhoneOS: true
@@ -103,12 +103,12 @@ targets:
       base:
         INFOPLIST_FILE: ""
         GENERATE_INFOPLIST_FILE: "YES"
-        PRODUCT_BUNDLE_IDENTIFIER: com.velox.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.tutormeter.app.tests
     dependencies:
       - target: Velox
 
 schemes:
-  Velox:
+  Tutormeter:
     build:
       targets:
         Velox: all

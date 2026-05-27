@@ -1,4 +1,4 @@
-# Velox — Setup Guida CI/CD
+# Tutormeter — Setup Guida CI/CD
 
 ## 1. App Store Connect — Registrare l'app
 
@@ -8,8 +8,8 @@
 3. Clicca **+** (in alto) → **App IDs**
 4. Seleziona **App** e clicca **Continue**
 5. Compila:
-   - **Description**: `Velox`
-   - **Bundle ID**: `com.velox.app` (Explicit)
+   - **Description**: `Tutormeter`
+   - **Bundle ID**: `com.tutormeter.app` (Explicit)
    - **Capabilities** da abilitare:
      - ✅ Background Modes (Location, Audio, Fetch)
      - ✅ Push Notifications (per Live Activities)
@@ -21,10 +21,10 @@
 2. **My Apps** → clicca **+** → **New App**
 3. Compila:
    - **Platform**: iOS
-   - **Name**: `Velox`
+   - **Name**: `Tutormeter`
    - **Primary Language**: Italian
-   - **Bundle ID**: `com.velox.app` (quello creato sopra)
-   - **SKU**: `com.velox.app`
+   - **Bundle ID**: `com.tutormeter.app` (quello creato sopra)
+   - **SKU**: `com.tutormeter.app`
    - **User Access**: Full Access
 4. Clicca **Create**
 
@@ -45,8 +45,8 @@
 ### 2.1 Connetti il repository
 1. Vai su https://codemagic.io
 2. Clicca **Add application**
-3. Seleziona **GitHub** → autorizza l'accesso a `gblasi98/Velox`
-4. Seleziona il repository **gblasi98/Velox**
+3. Seleziona **GitHub** → autorizza l'accesso a `gblasi98/Tutormeter`
+4. Seleziona il repository **gblasi98/Tutormeter**
 5. **Project type**: `iOS App` (o `Other`)
 
 ### 2.2 Configura le variabili encrypted (IMPORTANTE: NON committare mai queste chiavi!)
@@ -79,8 +79,8 @@ publishing:
 ```
 
 ### 2.5 Crea il gruppo TestFlight (opzionale per primo test)
-1. App Store Connect → **My Apps** → **Velox** → **TestFlight**
-2. Crea un gruppo test (es. `Velox Internal Testers`)
+1. App Store Connect → **My Apps** → **Tutormeter** → **TestFlight**
+2. Crea un gruppo test (es. `Tutormeter Internal Testers`)
 3. Aggiungi te stesso come tester
 
 ---
@@ -88,7 +88,7 @@ publishing:
 ## 3. Primo push per testare la build
 
 ```powershell
-cd C:\Users\hp\Desktop\Applicazione\Velox
+cd C:\Users\hp\Desktop\Applicazione\Tutormeter
 git add -A
 git commit -m "chore: update Codemagic config"
 git push
@@ -106,8 +106,8 @@ Dopo il push, Codemagic eseguirà:
 
 | Passo | Dove | Azione |
 |---|---|---|
-| 1.1 | developer.apple.com | Crea App ID `com.velox.app` |
-| 1.2 | appstoreconnect.apple.com | Registra app Velox |
+| 1.1 | developer.apple.com | Crea App ID `com.tutormeter.app` |
+| 1.2 | appstoreconnect.apple.com | Registra app Tutormeter |
 | 1.3 | appstoreconnect.apple.com | Genera API Key (.p8) |
 | 2.1 | codemagic.io | Connetti repo GitHub |
 | 2.2 | codemagic.io | Aggiungi variabili encrypted |

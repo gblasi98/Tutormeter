@@ -1,7 +1,7 @@
 import Testing
 import Foundation
 import CoreLocation
-@testable import Velox
+@testable import Tutormeter
 
 // MARK: - Location Auth Status Tests
 
