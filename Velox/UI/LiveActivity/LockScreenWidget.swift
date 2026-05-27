@@ -55,6 +55,7 @@ struct VeloxWidgetEntry: TimelineEntry {
 
 // MARK: - Widget Provider
 
+@MainActor
 struct VeloxWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> VeloxWidgetEntry {
         VeloxWidgetEntry(
