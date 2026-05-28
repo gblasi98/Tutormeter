@@ -105,8 +105,7 @@ workflows:
             -project $XCODE_PROJECT \
             -scheme $XCODE_SCHEME \
             -archivePath build/ios/archive/Tutormeter.xcarchive \
-            CODE_SIGN_STYLE=Automatic \
-            DEVELOPMENT_TEAM=$APPLE_DEVELOPER_TEAM
+            CODE_SIGN_STYLE=Automatic
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
