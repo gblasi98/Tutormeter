@@ -91,13 +91,19 @@ struct SpeedCalculator {
             return currentAverageSpeedKmh()
         }
 
-        // Initialize on first valid fix
+        // Initialize on first valid fix.
+        // Seed KF velocity from GPS Doppler speed so the filter
+        // doesn't start with zero velocity and take dozens of
+        // updates to converge via cross-covariance.
         if startTime == nil {
             startTime = fix.timestamp
             lastFix = fix
             fixCount = 1
             previousGPSPosition = 0.0
             previousKFPosition = 0.0
+            if fix.speed > 0 {
+                kf.reinitialize(position: 0, velocity: fix.speed)
+            }
             return 0.0
         }
 
@@ -123,6 +129,13 @@ struct SpeedCalculator {
 
                 // Kalman filter update with GPS position measurement
                 let gain = kf.update(measurement: gpsPosition)
+
+                // Also update velocity from GPS Doppler speed (accurate to ±0.1 m/s).
+                // This anchors the velocity estimate immediately instead of waiting
+                // for cross-covariance to build from position changes alone.
+                if fix.speed > 0 {
+                    kf.updateVelocity(measurement: fix.speed, noiseVariance: 2.0)
+                }
 
                 // Track KF distance separately (for comparison)
                 let kfDistanceDelta = kf.position - previousKFPosition
@@ -181,10 +194,13 @@ struct SpeedCalculator {
 
     /// Returns the average speed in km/h using the KF-smoothed distance.
     /// Falls back to raw GPS distance if KF has not converged.
+    ///
+    /// Uses the last GPS fix timestamp (not wall-clock time) for elapsed
+    /// calculation, ensuring consistent behavior in tests and production.
     func currentAverageSpeedKmh() -> Double {
-        guard let start = startTime else { return 0.0 }
+        guard let start = startTime, let last = lastFix else { return 0.0 }
 
-        let elapsed = dateProvider.now().timeIntervalSince(start)
+        let elapsed = last.timestamp.timeIntervalSince(start)
         guard elapsed > 0 else { return 0.0 }
 
         // Use KF distance if filter has converged, else raw GPS
@@ -203,10 +219,10 @@ struct SpeedCalculator {
         kf.velocity * 3.6
     }
 
-    /// Returns the elapsed tracking time in seconds.
+    /// Returns the elapsed tracking time in seconds, based on GPS timestamps.
     func elapsedTime() -> TimeInterval {
-        guard let start = startTime else { return 0 }
-        return dateProvider.now().timeIntervalSince(start)
+        guard let start = startTime, let last = lastFix else { return 0 }
+        return last.timestamp.timeIntervalSince(start)
     }
 
     /// Returns the total number of valid GPS fixes processed.

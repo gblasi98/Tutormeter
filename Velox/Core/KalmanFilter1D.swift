@@ -202,6 +202,62 @@ struct KalmanFilter1D {
         return gainMagnitude
     }
 
+    /// Velocity-only update: corrects velocity using GPS Doppler speed.
+    ///
+    /// GPS receivers compute speed from Doppler shift, accurate to ±0.1 m/s
+    /// independent of position accuracy. This gives the KF an immediate,
+    /// reliable velocity reference instead of waiting for cross-covariance
+    /// to build from position changes alone.
+    ///
+    /// Measurement model: z = H * x + v, where H = [0, 1].
+    /// - Parameter measurement: GPS Doppler speed in m/s.
+    /// - Parameter noiseVariance: Measurement noise variance (m²/s²). GPS Doppler
+    ///   is typically ~0.01 m²/s². Use higher values (1-5) in urban canyons.
+    /// - Returns: Kalman gain magnitude.
+    @discardableResult
+    mutating func updateVelocity(measurement: Double, noiseVariance: Double = 1.0) -> Double {
+        guard measurement.isFinite, !measurement.isNaN, measurement >= 0 else {
+            return 0.0
+        }
+
+        // H = [0, 1], R = noiseVariance
+        // Innovation: y = z - v
+        let y = measurement - velocity
+
+        // Innovation covariance: S = H * P * Hᵀ + R = P[1,1] + R
+        let S = P[1][1] + noiseVariance
+
+        // Kalman gain: K = P * Hᵀ / S
+        // Since Hᵀ = [0, 1]ᵀ: K = [P[0,1], P[1,1]]ᵀ / S
+        let K0 = P[0][1] / S
+        let K1 = P[1][1] / S
+
+        // Update state
+        position += K0 * y
+        velocity += K1 * y
+
+        // Update covariance: P = (I - K*H) * P
+        // I - K*H = [[1, -K0], [0, 1-K1]]
+        let IKH00 = 1.0
+        let IKH01 = -K0
+        let IKH10 = 0.0
+        let IKH11 = 1.0 - K1
+
+        let P00 = P[0][0]
+        let P01 = P[0][1]
+        let P10 = P[1][0]
+        let P11 = P[1][1]
+
+        let newP00 = IKH00 * P00 + IKH01 * P10
+        let newP01 = IKH00 * P01 + IKH01 * P11
+        let newP10 = IKH10 * P00 + IKH11 * P10
+        let newP11 = IKH10 * P01 + IKH11 * P11
+
+        P = [[newP00, newP01], [newP10, newP11]]
+
+        return abs(K1)
+    }
+
     // MARK: - Uncertainty Accessors
 
     /// Standard deviation of the position estimate in meters.
