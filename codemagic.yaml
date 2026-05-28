@@ -96,16 +96,19 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
-      - name: Set up code signing
+      - name: Write App Store Connect API key
         script: |
-          xcode-project use-ios-signing
-      - name: Build and sign archive
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > $CM_BUILD_DIR/authkey.p8
+      - name: Build and sign archive (App Store Connect auth)
         script: |
           xcodebuild archive \
             -project $XCODE_PROJECT \
             -scheme $XCODE_SCHEME \
             -archivePath build/ios/archive/Tutormeter.xcarchive \
-            CODE_SIGN_STYLE=Automatic
+            -allowProvisioningUpdates \
+            -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
+            -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
+            -authenticationKeyPath $CM_BUILD_DIR/authkey.p8
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
