@@ -36,13 +36,13 @@ final class LocationTracker: NSObject {
 
     // MARK: - Configuration
     /// Minimum horizontal accuracy to accept a GPS fix (meters).
-    private static var minAccuracy: Double { TutormeterConfiguration.shared.gpsMaxAccuracyMeters }
+    private nonisolated static var minAccuracy: Double { TutormeterConfiguration.shared.gpsMaxAccuracyMeters }
 
     /// Maximum age of a cached location to accept (seconds).
-    private static var maxLocationAge: TimeInterval { TutormeterConfiguration.shared.maxLocationAgeSeconds }
+    private nonisolated static var maxLocationAge: TimeInterval { TutormeterConfiguration.shared.maxLocationAgeSeconds }
 
     /// Delay between location updates. nil = continuous.
-    private static let updateInterval: TimeInterval? = nil
+    private nonisolated static let updateInterval: TimeInterval? = nil
 
     // MARK: - Init
 

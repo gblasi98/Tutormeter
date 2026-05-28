@@ -18,13 +18,13 @@ final class CalibrationManager {
     // MARK: - Configuration
 
     /// Minimum stationary duration required for valid calibration.
-    static var minimumStationarySeconds: TimeInterval {
+    nonisolated static var minimumStationarySeconds: TimeInterval {
         TutormeterConfiguration.shared.calibrationMinStationaryDurationSeconds
     }
 
     /// Maximum acceleration magnitude to consider the device "stationary" (m/s²).
     /// Gravity ≈ 9.81, so we allow ±0.1 g variation.
-    static var stationaryThreshold: Double {
+    nonisolated static var stationaryThreshold: Double {
         TutormeterConfiguration.shared.calibrationStationaryThreshold
     }
 

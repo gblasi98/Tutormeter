@@ -40,13 +40,13 @@ final class IMUFilter {
     // MARK: - Configuration
 
     /// Cutoff frequency for the low-pass filter (Hz).
-    static var lowPassCutoffHz: Double { TutormeterConfiguration.shared.imuLowPassCutoffHz }
+    nonisolated static var lowPassCutoffHz: Double { TutormeterConfiguration.shared.imuLowPassCutoffHz }
 
     /// Device motion update interval in seconds.
-    static var updateInterval: TimeInterval { TutormeterConfiguration.shared.imuUpdateIntervalSeconds }
+    nonisolated static var updateInterval: TimeInterval { TutormeterConfiguration.shared.imuUpdateIntervalSeconds }
 
     /// Sampling duration for auto-calibration.
-    static var calibrationDuration: TimeInterval { TutormeterConfiguration.shared.calibrationMinStationaryDurationSeconds }
+    nonisolated static var calibrationDuration: TimeInterval { TutormeterConfiguration.shared.calibrationMinStationaryDurationSeconds }
 
     // MARK: - Initialization
 

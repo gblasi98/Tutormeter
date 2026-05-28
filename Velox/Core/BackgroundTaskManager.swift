@@ -21,8 +21,8 @@ import SwiftData
 @MainActor
 final class BackgroundTaskManager {
     // MARK: - Task Identifiers
-    static let refreshTaskID = "com.tutormeter.refresh"
-    static let cleanupTaskID = "com.tutormeter.cleanup"
+    nonisolated static let refreshTaskID = "com.tutormeter.refresh"
+    nonisolated static let cleanupTaskID = "com.tutormeter.cleanup"
 
     // MARK: - Dependencies
     private let config: TutormeterConfiguration

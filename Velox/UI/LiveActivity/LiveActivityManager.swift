@@ -52,17 +52,17 @@ final class LiveActivityManager {
 
     // MARK: - Configuration
     /// Minimum interval between update pushes (seconds).
-    static var minUpdateInterval: TimeInterval {
+    nonisolated static var minUpdateInterval: TimeInterval {
         TutormeterConfiguration.shared.liveActivityMinUpdateIntervalSeconds
     }
 
     /// Maximum age of the activity before it's considered stale.
-    static var maxActivityAge: TimeInterval {
+    nonisolated static var maxActivityAge: TimeInterval {
         TutormeterConfiguration.shared.liveActivityMaxAgeSeconds
     }
 
     /// Content relevance score (higher = more prominent in Dynamic Island).
-    static var relevanceScore: Double {
+    nonisolated static var relevanceScore: Double {
         TutormeterConfiguration.shared.liveActivityRelevanceScore
     }
 
