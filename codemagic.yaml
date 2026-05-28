@@ -98,49 +98,141 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
-      - name: Create provisioning profile via App Store Connect API
+      - name: Auto sign via App Store Connect API (Python)
         script: |
-          echo "=== Creating distribution provisioning profile ==="
-          API_KEY_FILE=$(mktemp)
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > "$API_KEY_FILE"
+          python3 - << 'PYEOF'
+          import json, time, base64, subprocess, os, sys, tempfile
 
-          # Generate JWT
-          HEADER=$(echo -n '{"alg":"ES256","kid":"'$APP_STORE_CONNECT_KEY_ID'","typ":"JWT"}' | base64 | tr -d '=' | tr '/+' '_-')
-          NOW=$(date +%s)
-          PAYLOAD=$(echo -n '{"iss":"'$APP_STORE_CONNECT_ISSUER_ID'","iat":'$NOW',"exp":'$((NOW+600))',"aud":"appstoreconnect-v1"}' | base64 | tr -d '=' | tr '/+' '_-')
-          SIGNING_INPUT="$HEADER.$PAYLOAD"
-          SIGNATURE=$(echo -n "$SIGNING_INPUT" | openssl dgst -sha256 -sign "$API_KEY_FILE" | base64 | tr -d '=' | tr '/+' '_-')
-          JWT="$SIGNING_INPUT.$SIGNATURE"
+          BUNDLE_ID = os.environ["BUNDLE_ID"]
+          KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"]
+          ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"]
+          PRIVATE_KEY = os.environ["APP_STORE_CONNECT_PRIVATE_KEY"]
 
-          # Find bundle ID
-          BUNDLE_RESP=$(curl -s -H "Authorization: Bearer $JWT" "https://api.appstoreconnect.apple.com/v1/bundleIds?filter[identifier]=com.tutormeter.app")
-          BUNDLE_ID=$(echo "$BUNDLE_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null)
-          echo "Bundle ID: ${BUNDLE_ID:-NOT FOUND}"
+          # Write private key to temp file
+          fd, key_path = tempfile.mkstemp()
+          with os.fdopen(fd, 'w') as f:
+              f.write(PRIVATE_KEY)
 
-          # Find distribution certificate
-          CERT_RESP=$(curl -s -H "Authorization: Bearer $JWT" "https://api.appstoreconnect.apple.com/v1/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=1")
-          CERT_ID=$(echo "$CERT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null)
-          echo "Certificate: ${CERT_ID:-NOT FOUND}"
+          def jwt():
+              header = base64.urlsafe_b64encode(
+                  json.dumps({"alg":"ES256","kid":KEY_ID,"typ":"JWT"}).encode()
+              ).decode().rstrip("=")
+              payload = base64.urlsafe_b64encode(
+                  json.dumps({"iss":ISSUER_ID,"iat":int(time.time()),
+                              "exp":int(time.time())+600,"aud":"appstoreconnect-v1"}).encode()
+              ).decode().rstrip("=")
+              sig_input = f"{header}.{payload}"
+              result = subprocess.run(
+                  ["openssl","dgst","-sha256","-sign",key_path],
+                  input=sig_input.encode(), capture_output=True
+              )
+              signature = base64.urlsafe_b64encode(result.stdout).decode().rstrip("=")
+              return f"{sig_input}.{signature}"
 
-          if [ -n "$BUNDLE_ID" ] && [ -n "$CERT_ID" ]; then
-            # Check if profile already exists
-            PROF_RESP=$(curl -s -H "Authorization: Bearer $JWT" "https://api.appstoreconnect.apple.com/v1/profiles?filter[name]=Tutormeter%20App%20Store&filter[profileType]=IOS_APP_STORE")
-            PROF_ID=$(echo "$PROF_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null)
-            if [ -n "$PROF_ID" ]; then
-              echo "Profile already exists: $PROF_ID"
-            else
-              echo "Creating new profile..."
-              curl -s -X POST "https://api.appstoreconnect.apple.com/v1/profiles" \
-                -H "Authorization: Bearer $JWT" \
-                -H "Content-Type: application/json" \
-                -d "{\"data\":{\"type\":\"profiles\",\"attributes\":{\"name\":\"Tutormeter App Store\",\"profileType\":\"IOS_APP_STORE\"},\"relationships\":{\"bundleId\":{\"data\":{\"type\":\"bundleIds\",\"id\":\"$BUNDLE_ID\"}},\"certificates\":{\"data\":[{\"type\":\"certificates\",\"id\":\"$CERT_ID\"}]}}}}"
-              echo "Profile created."
-            fi
-          else
-            echo "ERROR: Missing bundle ID or distribution certificate."
-            echo "You need to create these on developer.apple.com first."
-          fi
-          rm -f "$API_KEY_FILE"
+          def api(path, method="GET", data=None):
+              tok = jwt()
+              cmd = ["curl","-s","-H",f"Authorization: Bearer {tok}"]
+              if data:
+                  cmd += ["-X",method,"-H","Content-Type: application/json","-d",json.dumps(data)]
+              cmd.append(f"https://api.appstoreconnect.apple.com/v1{path}")
+              resp = subprocess.run(cmd, capture_output=True, text=True)
+              return json.loads(resp.stdout) if resp.stdout else {}
+
+          print("=== App Store Connect API ===")
+
+          # Check bundle ID
+          r = api(f"/bundleIds?filter[identifier]={BUNDLE_ID}")
+          bundle_id = r.get("data",[{}])[0].get("id") if r.get("data") else None
+          print(f"Bundle ID: {bundle_id or 'NOT FOUND'}")
+
+          # Check distribution certificate
+          r = api("/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=1")
+          cert_id = r.get("data",[{}])[0].get("id") if r.get("data") else None
+          print(f"Certificate: {cert_id or 'NOT FOUND'}")
+
+          if not bundle_id:
+              print("ERROR: Bundle ID not found. Create it on developer.apple.com")
+              sys.exit(1)
+
+          if not cert_id:
+              print("No distribution certificate. Creating one...")
+              os.makedirs(os.path.expanduser("~/signing"), exist_ok=True)
+              subprocess.run(["openssl","genrsa","-out",
+                  os.path.expanduser("~/signing/dist_key.pem"),"2048"], check=True)
+              subprocess.run(["openssl","req","-new","-key",
+                  os.path.expanduser("~/signing/dist_key.pem"),"-out",
+                  os.path.expanduser("~/signing/cert.csr"),
+                  "-subj","/CN=Tutormeter CI/emailAddress=blasi.gianmarco98@gmail.com"], check=True)
+              with open(os.path.expanduser("~/signing/cert.csr")) as f:
+                  csr = base64.b64encode(f.read().encode()).decode()
+              r = api("/certificates", "POST", {
+                  "data":{"type":"certificates","attributes":{
+                      "certificateType":"IOS_DISTRIBUTION","csrContent":csr}}})
+              cert_id = r.get("data",{}).get("id")
+              if cert_id:
+                  cert_b64 = r["data"]["attributes"]["certificateContent"]
+                  with open(os.path.expanduser("~/signing/dist_cert.cer"),"wb") as f:
+                      f.write(base64.b64decode(cert_b64))
+                  print(f"Certificate created: {cert_id}")
+              else:
+                  print(f"Certificate creation failed: {json.dumps(r)[:200]}")
+                  sys.exit(1)
+
+          # Check/create provisioning profile
+          r = api("/profiles?filter[name]=Tutormeter%20CI&filter[profileType]=IOS_APP_STORE")
+          prof_id = r.get("data",[{}])[0].get("id") if r.get("data") else None
+
+          if not prof_id:
+              print("Creating provisioning profile...")
+              r = api("/profiles", "POST", {
+                  "data":{"type":"profiles","attributes":{
+                      "name":"Tutormeter CI","profileType":"IOS_APP_STORE"},
+                  "relationships":{"bundleId":{"data":{"type":"bundleIds","id":bundle_id}},
+                  "certificates":{"data":[{"type":"certificates","id":cert_id}]}}}})
+              prof_id = r.get("data",{}).get("id")
+              print(f"Profile: {prof_id or 'FAILED'}")
+
+          if not prof_id:
+              print("ERROR: Could not create profile")
+              sys.exit(1)
+
+          # Download and install profile
+          print("Downloading profile...")
+          r = api(f"/profiles/{prof_id}")
+          prof_content = r.get("data",{}).get("attributes",{}).get("profileContent")
+          prof_uuid = r.get("data",{}).get("attributes",{}).get("uuid")
+          if prof_content and prof_uuid:
+              prof_dir = os.path.expanduser("~/Library/MobileDevice/Provisioning Profiles")
+              os.makedirs(prof_dir, exist_ok=True)
+              prof_path = os.path.join(prof_dir, f"{prof_uuid}.mobileprovision")
+              with open(prof_path, "wb") as f:
+                  f.write(base64.b64decode(prof_content))
+              print(f"Profile installed: {prof_uuid}")
+
+          # Import certificate into keychain
+          cert_path = os.path.expanduser("~/signing/dist_cert.cer")
+          key_path2 = os.path.expanduser("~/signing/dist_key.pem")
+          if os.path.exists(cert_path) and os.path.exists(key_path2):
+              print("Importing certificate...")
+              subprocess.run(["security","create-keychain","-p","","build.keychain"], check=False)
+              subprocess.run(["security","default-keychain","-s","build.keychain"], check=False)
+              subprocess.run(["security","unlock-keychain","-p","","build.keychain"], check=False)
+              subprocess.run(["security","import",cert_path,"-k","build.keychain","-T","/usr/bin/codesign"], check=False)
+              # Create p12 from cert + key
+              subprocess.run(["openssl","pkcs12","-export","-out",
+                  os.path.expanduser("~/signing/dist.p12"),"-inkey",key_path2,"-in",cert_path,
+                  "-passout","pass:","-password","pass:"], check=False)
+              subprocess.run(["security","import",
+                  os.path.expanduser("~/signing/dist.p12"),"-k","build.keychain",
+                  "-T","/usr/bin/codesign","-P",""], check=False)
+              subprocess.run(["security","set-key-partition-list","-S","apple-tool:,apple:",
+                  "-s","-k","","build.keychain"], check=False)
+              print("Certificate imported.")
+
+          os.unlink(key_path)
+          print("=== Signing setup complete ===")
+          PYEOF
+
       - name: Build and sign archive
         script: |
           xcodebuild archive \
@@ -150,8 +242,7 @@ workflows:
             -allowProvisioningUpdates \
             -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
             -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
-            -authenticationKeyPath <(echo "$APP_STORE_CONNECT_PRIVATE_KEY") \
-            CODE_SIGN_STYLE=Automatic
+            -authenticationKeyPath <(echo "$APP_STORE_CONNECT_PRIVATE_KEY")
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
