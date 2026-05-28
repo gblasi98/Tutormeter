@@ -172,6 +172,9 @@ final class TrackingManager {
     private var stateMachine: TrackingStateMachine
     private var liveActivityManager: LiveActivityManager?
 
+    /// Handle to the async setup Task so we can cancel it on stop.
+    private var setupTask: Task<Void, Never>?
+
     private(set) var isTracking = false
     private(set) var averageSpeed: Double = 0.0
     private(set) var instantSpeed: Double = 0.0
@@ -218,7 +221,10 @@ final class TrackingManager {
 
         // Wire up services asynchronously. Calibration and GPS lock happen
         // inside this Task; until then the state remains .active.
-        Task { @MainActor in
+        setupTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            // Bail out if stopTracking() was called before this Task began.
+            guard self.isTracking else { return }
             if let result = await calib.calibrate(using: imu) {
                 tracker.configureFilter(
                     processNoisePos: result.noiseVariance * 0.5,
@@ -288,12 +294,20 @@ final class TrackingManager {
             )
         }
 
+        // Cancel any pending async setup to prevent stale Task
+        // from mutating state after stop.
+        setupTask?.cancel()
+        setupTask = nil
+
         isTracking = false
         stateMachine.complete()
         state = stateMachine.currentState
 
         locationTracker?.stopTracking()
         imuFilter?.stop()
+        locationTracker = nil
+        imuFilter = nil
+        calibrationMgr = nil
 
         let calc = locationTracker?.calculator
         let finalSpeed = calc?.currentAverageSpeedKmh() ?? 0
