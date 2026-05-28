@@ -333,6 +333,10 @@ final class TrackingManager {
         instantSpeed = 0
         confidence = 0
 
+        // Reset state machine to .idle for the next session.
+        stateMachine.reset()
+        state = stateMachine.currentState
+
         return summary
     }
 
