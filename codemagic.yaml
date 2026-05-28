@@ -96,17 +96,43 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
-      - name: Set up iOS code signing
+      - name: Write App Store Connect API key
         script: |
-          xcode-project use-ios-signing
-      - name: Build and sign archive
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
+      - name: Create export options plist
+        script: |
+          cat > /tmp/exportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+          </dict>
+          </plist>
+          EOF
+      - name: Build, sign, and archive
         script: |
           xcodebuild archive \
             -project $XCODE_PROJECT \
             -scheme $XCODE_SCHEME \
             -archivePath build/ios/archive/Tutormeter.xcarchive \
             -allowProvisioningUpdates \
-            CODE_SIGN_STYLE=Automatic
+            -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
+            -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
+            -authenticationKeyPath /tmp/authkey.p8
+      - name: Export IPA
+        script: |
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Tutormeter.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /tmp/exportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
+            -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
+            -authenticationKeyPath /tmp/authkey.p8
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
