@@ -215,13 +215,13 @@ struct LiveActivityIntegrationTests {
 
     @Test("Content state diff detection works")
     func contentStateDiff() {
-        let state1 = VeloxActivityContentState(
+        let state1 = TutormeterActivityContentState(
             averageSpeedKmh: 100, instantSpeedKmh: 100,
             distanceKm: 1, elapsedSeconds: 30,
             confidence: 0.8, trackingState: "tracking",
             isOverLimit: false, isGPSLost: false
         )
-        let state2 = VeloxActivityContentState(
+        let state2 = TutormeterActivityContentState(
             averageSpeedKmh: 100, instantSpeedKmh: 100,
             distanceKm: 1, elapsedSeconds: 30,
             confidence: 0.8, trackingState: "tracking",
@@ -235,13 +235,13 @@ struct LiveActivityIntegrationTests {
 
     @Test("Speed change creates different content state")
     func speedChangeDifferentState() {
-        let state1 = VeloxActivityContentState(
+        let state1 = TutormeterActivityContentState(
             averageSpeedKmh: 100, instantSpeedKmh: 100,
             distanceKm: 1, elapsedSeconds: 30,
             confidence: 0.8, trackingState: "tracking",
             isOverLimit: false, isGPSLost: false
         )
-        let state2 = VeloxActivityContentState(
+        let state2 = TutormeterActivityContentState(
             averageSpeedKmh: 110, instantSpeedKmh: 115,
             distanceKm: 1.5, elapsedSeconds: 31,
             confidence: 0.85, trackingState: "tracking",

@@ -2,13 +2,13 @@ import Testing
 import Foundation
 @testable import Tutormeter
 
-// MARK: - VeloxActivityContentState Tests
+// MARK: - TutormeterActivityContentState Tests
 
-struct VeloxActivityContentStateTests {
+struct TutormeterActivityContentStateTests {
 
     @Test("Formatted time: zero seconds")
     func formattedTimeZero() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 0, instantSpeedKmh: 0,
             distanceKm: 0, elapsedSeconds: 0,
             confidence: 0, trackingState: "active",
@@ -19,7 +19,7 @@ struct VeloxActivityContentStateTests {
 
     @Test("Formatted time: minutes and seconds")
     func formattedTimeMinutesSeconds() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 100, instantSpeedKmh: 110,
             distanceKm: 5.2, elapsedSeconds: 185,
             confidence: 0.9, trackingState: "tracking",
@@ -30,7 +30,7 @@ struct VeloxActivityContentStateTests {
 
     @Test("Formatted time: exactly one hour")
     func formattedTimeOneHour() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 120, instantSpeedKmh: 120,
             distanceKm: 120, elapsedSeconds: 3600,
             confidence: 1.0, trackingState: "tracking",
@@ -41,7 +41,7 @@ struct VeloxActivityContentStateTests {
 
     @Test("Formatted speed: zero")
     func formattedSpeedZero() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 0, instantSpeedKmh: 0,
             distanceKm: 0, elapsedSeconds: 0,
             confidence: 0, trackingState: "idle",
@@ -52,7 +52,7 @@ struct VeloxActivityContentStateTests {
 
     @Test("Formatted speed: highway speed")
     func formattedSpeedHighway() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 127.3, instantSpeedKmh: 130,
             distanceKm: 10, elapsedSeconds: 283,
             confidence: 0.95, trackingState: "tracking",
@@ -63,7 +63,7 @@ struct VeloxActivityContentStateTests {
 
     @Test("Over limit flag is set")
     func overLimitFlag() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 135, instantSpeedKmh: 138,
             distanceKm: 5, elapsedSeconds: 133,
             confidence: 0.9, trackingState: "tracking",
@@ -74,7 +74,7 @@ struct VeloxActivityContentStateTests {
 
     @Test("GPS lost flag is set")
     func gpsLostFlag() {
-        let state = VeloxActivityContentState(
+        let state = TutormeterActivityContentState(
             averageSpeedKmh: 100, instantSpeedKmh: 0,
             distanceKm: 3, elapsedSeconds: 108,
             confidence: 0.3, trackingState: "gpsLost",
@@ -85,13 +85,13 @@ struct VeloxActivityContentStateTests {
 
     @Test("Content state is hashable for diffing")
     func contentStateHashable() {
-        let state1 = VeloxActivityContentState(
+        let state1 = TutormeterActivityContentState(
             averageSpeedKmh: 120, instantSpeedKmh: 120,
             distanceKm: 1, elapsedSeconds: 30,
             confidence: 0.8, trackingState: "tracking",
             isOverLimit: false, isGPSLost: false
         )
-        let state2 = VeloxActivityContentState(
+        let state2 = TutormeterActivityContentState(
             averageSpeedKmh: 120, instantSpeedKmh: 120,
             distanceKm: 1, elapsedSeconds: 30,
             confidence: 0.8, trackingState: "tracking",
@@ -102,15 +102,15 @@ struct VeloxActivityContentStateTests {
     }
 }
 
-// MARK: - VeloxActivityAttributes Tests
+// MARK: - TutormeterActivityAttributes Tests
 
-struct VeloxActivityAttributesTests {
+struct TutormeterActivityAttributesTests {
 
     @Test("Zone type encoding")
     func zoneTypeEncoding() {
-        let tutor = VeloxActivityAttributes.ZoneType.tutor
-        let autovelox = VeloxActivityAttributes.ZoneType.autovelox
-        let unknown = VeloxActivityAttributes.ZoneType.unknown
+        let tutor = TutormeterActivityAttributes.ZoneType.tutor
+        let autovelox = TutormeterActivityAttributes.ZoneType.autovelox
+        let unknown = TutormeterActivityAttributes.ZoneType.unknown
 
         #expect(tutor.rawValue == "Tutor")
         #expect(autovelox.rawValue == "Autovelox")
@@ -119,7 +119,7 @@ struct VeloxActivityAttributesTests {
 
     @Test("Attributes with Tutor zone")
     func tutorAttributes() {
-        let attrs = VeloxActivityAttributes(
+        let attrs = TutormeterActivityAttributes(
             zoneType: .tutor,
             startLatitude: 45.30,
             startLongitude: 9.50

@@ -3,7 +3,7 @@ import CoreLocation
 
 // MARK: - Location Tracker
 
-/// Manages GPS location tracking for the Velox speed monitoring system.
+/// Manages GPS location tracking for the Tutormeter speed monitoring system.
 ///
 /// Configures CLLocationManager for high-accuracy automotive navigation:
 /// - `kCLLocationAccuracyBestForNavigation` for maximum precision
@@ -36,10 +36,10 @@ final class LocationTracker: NSObject {
 
     // MARK: - Configuration
     /// Minimum horizontal accuracy to accept a GPS fix (meters).
-    private static let minAccuracy: Double = 20.0
+    private static var minAccuracy: Double { TutormeterConfiguration.shared.gpsMaxAccuracyMeters }
 
     /// Maximum age of a cached location to accept (seconds).
-    private static let maxLocationAge: TimeInterval = 5.0
+    private static var maxLocationAge: TimeInterval { TutormeterConfiguration.shared.maxLocationAgeSeconds }
 
     /// Delay between location updates. nil = continuous.
     private static let updateInterval: TimeInterval? = nil
@@ -265,6 +265,12 @@ extension LocationTracker: CLLocationManagerDelegate {
         // Reject negative or NaN coordinates
         guard location.coordinate.latitude.isFinite,
               location.coordinate.longitude.isFinite else {
+            rejectedFixCount += 1
+            return
+        }
+
+        // Reject impossible altitudes (sensor glitches occasionally return -10⁹).
+        guard location.altitude > TutormeterConfiguration.shared.minAltitudeMeters else {
             rejectedFixCount += 1
             return
         }

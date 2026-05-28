@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - CarPlay Scene Delegate
 
-/// Manages the CarPlay interface for Velox.
+/// Manages the CarPlay interface for Tutormeter.
 ///
 /// When the iPhone connects to a CarPlay-enabled vehicle, this delegate
 /// creates and manages the dashboard interface showing:
@@ -12,17 +12,17 @@ import SwiftUI
 /// - GPS signal quality indicator
 /// - Zone type (Tutor / Autovelox)
 ///
-/// CarPlay is the ideal interface for Velox because:
+/// CarPlay is the ideal interface for Tutormeter because:
 /// - The driver's phone is typically connected to CarPlay while navigating
 /// - The car's display is larger and more visible than the phone
 /// - It's safer: eyes stay on the road, not on the phone
 ///
 /// Template used: `CPInformationTemplate` with speed as the primary info.
 @MainActor
-final class VeloxCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
+final class TutormeterCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     // MARK: - Properties
     private var interfaceController: CPInterfaceController?
-    private var carPlayManager = VeloxCarPlayManager()
+    private var carPlayManager = TutormeterCarPlayManager()
     private var updateTimer: Timer?
 
     // MARK: - Scene Lifecycle
@@ -61,7 +61,7 @@ final class VeloxCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDe
         let actions = buildActions()
 
         return CPInformationTemplate(
-            title: "Velox",
+            title: "Tutormeter",
             layout: .leading, // Icon on left, text on right
             items: items,
             actions: actions
@@ -172,7 +172,7 @@ final class VeloxCarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDe
 
 // MARK: - CPInterfaceControllerDelegate
 
-extension VeloxCarPlaySceneDelegate: CPInterfaceControllerDelegate {
+extension TutormeterCarPlaySceneDelegate: CPInterfaceControllerDelegate {
     func templateWillAppear(_ aTemplate: CPTemplate, animated: Bool) {
         print("[CarPlay] Template will appear: \(type(of: aTemplate))")
     }

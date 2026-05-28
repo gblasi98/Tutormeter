@@ -1,13 +1,14 @@
 import Foundation
 import AppIntents
+import CoreLocation
 
 // MARK: - Start Tracking Intent
 
-/// Siri Shortcut to start Velox speed monitoring.
+/// Siri Shortcut to start Tutormeter speed monitoring.
 ///
 /// Usage via Siri:
-/// - "Hey Siri, start Velox tracking"
-/// - "Avvia il monitoraggio Velox"
+/// - "Hey Siri, start Tutormeter tracking"
+/// - "Avvia il monitoraggio Tutormeter"
 ///
 /// Usage via Shortcuts app:
 /// - Add "Avvia Monitoraggio Tutor" action to any shortcut
@@ -34,7 +35,7 @@ struct StartTrackingIntent: AppIntent {
 
         guard !manager.isTracking else {
             return .result(
-                dialog: "Velox is already monitoring your speed."
+                dialog: "Tutormeter is already monitoring your speed."
             )
         }
 
@@ -42,11 +43,11 @@ struct StartTrackingIntent: AppIntent {
 
         if immediateStart {
             return .result(
-                dialog: "Velox monitoring started. Your average speed will appear in the Dynamic Island."
+                dialog: "Tutormeter monitoring started. Your average speed will appear in the Dynamic Island."
             )
         } else {
             return .result(
-                dialog: "Velox is ready. Monitoring will begin when a speed camera zone is detected."
+                dialog: "Tutormeter is ready. Monitoring will begin when a speed camera zone is detected."
             )
         }
     }
@@ -54,7 +55,7 @@ struct StartTrackingIntent: AppIntent {
 
 // MARK: - Stop Tracking Intent
 
-/// Siri Shortcut to stop Velox speed monitoring.
+/// Siri Shortcut to stop Tutormeter speed monitoring.
 struct StopTrackingIntent: AppIntent {
     static var title: LocalizedStringResource = "Ferma Monitoraggio Tutor"
     static var description = IntentDescription(
@@ -69,7 +70,7 @@ struct StopTrackingIntent: AppIntent {
 
         guard manager.isTracking else {
             return .result(
-                dialog: "Velox is not currently monitoring."
+                dialog: "Tutormeter is not currently monitoring."
             )
         }
 
@@ -85,8 +86,8 @@ struct StopTrackingIntent: AppIntent {
 // MARK: - Get Status Intent
 
 /// Siri Shortcut to query current tracking status.
-struct GetVeloxStatusIntent: AppIntent {
-    static var title: LocalizedStringResource = "Stato Velox"
+struct GetTutormeterStatusIntent: AppIntent {
+    static var title: LocalizedStringResource = "Stato Tutormeter"
     static var description = IntentDescription(
         "Reports your current tracking status and average speed.",
         categoryName: "Navigation"
@@ -100,11 +101,11 @@ struct GetVeloxStatusIntent: AppIntent {
         if manager.isTracking {
             let speed = Int(manager.averageSpeed)
             return .result(
-                dialog: "Velox is tracking. Current average speed: \(speed) kilometers per hour."
+                dialog: "Tutormeter is tracking. Current average speed: \(speed) kilometers per hour."
             )
         } else {
             return .result(
-                dialog: "Velox is idle. Say 'Avvia monitoraggio Tutor' to start."
+                dialog: "Tutormeter is idle. Say 'Avvia monitoraggio Tutor' to start."
             )
         }
     }
@@ -114,13 +115,13 @@ struct GetVeloxStatusIntent: AppIntent {
 
 /// Registers the available Siri Shortcuts and App Intents for
 /// the Shortcuts app and Siri voice commands.
-struct VeloxAppShortcuts: AppShortcutsProvider {
+struct TutormeterAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: StartTrackingIntent(),
             phrases: [
-                "Start Velox tracking",
-                "Avvia monitoraggio Velox",
+                "Start Tutormeter tracking",
+                "Avvia monitoraggio Tutormeter",
                 "Avvia monitoraggio Tutor con \(.applicationName)",
                 "Start speed monitoring with \(.applicationName)"
             ],
@@ -131,8 +132,8 @@ struct VeloxAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StopTrackingIntent(),
             phrases: [
-                "Stop Velox tracking",
-                "Ferma monitoraggio Velox",
+                "Stop Tutormeter tracking",
+                "Ferma monitoraggio Tutormeter",
                 "Stop speed monitoring with \(.applicationName)"
             ],
             shortTitle: "Ferma Monitoraggio",
@@ -140,14 +141,14 @@ struct VeloxAppShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: GetVeloxStatusIntent(),
+            intent: GetTutormeterStatusIntent(),
             phrases: [
-                "What's my Velox speed",
+                "What's my Tutormeter speed",
                 "Qual è la mia velocità media",
-                "Velox status",
-                "Stato Velox"
+                "Tutormeter status",
+                "Stato Tutormeter"
             ],
-            shortTitle: "Stato Velox",
+            shortTitle: "Stato Tutormeter",
             systemImageName: "info.circle"
         )
     }
@@ -190,14 +191,21 @@ final class TrackingManager {
 
     @discardableResult
     func startTracking() -> Bool {
-        guard !isTracking else { return false }
+        // Reject re-entrant calls. We intentionally do NOT flip
+        // `isTracking` here: the public state must only become true once
+        // the underlying services are configured, so observers don't
+        // race with half-initialized internals.
+        guard !isTracking, locationTracker == nil else { return false }
 
-        isTracking = true
-        stateMachine.start()
-        state = stateMachine.currentState
-        errorMessage = nil
-
+        // Eagerly construct dependencies so we can surface init failures
+        // before kicking off the async setup.
         let tracker = LocationTracker()
+        guard CLLocationManager.locationServicesEnabled() else {
+            errorMessage = "Location services are disabled. Enable them in Settings."
+            return false
+        }
+
+        errorMessage = nil
         self.locationTracker = tracker
 
         let imu = IMUFilter()
@@ -206,8 +214,11 @@ final class TrackingManager {
         let calib = CalibrationManager()
         self.calibrationMgr = calib
 
-        // Start calibration then begin tracking
-        Task {
+        // Start calibration then begin tracking. State mutation happens
+        // inside the Task on the MainActor, AFTER calibration completes
+        // and services are wired up — eliminating the prior race where
+        // `isTracking` was true while subsystems were still spinning up.
+        Task { @MainActor in
             if let result = await calib.calibrate(using: imu) {
                 tracker.configureFilter(
                     processNoisePos: result.noiseVariance * 0.5,
@@ -218,18 +229,26 @@ final class TrackingManager {
 
             tracker.startTracking(
                 onFix: { [weak self] fix in
-                    self?.handleGPSFix(fix)
+                    Task { @MainActor [weak self] in
+                        self?.handleGPSFix(fix)
+                    }
                 },
                 onStatusChange: { [weak self] status in
-                    self?.authStatus = status
+                    Task { @MainActor [weak self] in
+                        self?.authStatus = status
+                    }
                 },
                 onError: { [weak self] error in
-                    self?.handleError(error)
+                    Task { @MainActor [weak self] in
+                        self?.handleError(error)
+                    }
                 }
             )
 
             imu.start { [weak self] accel, dt in
-                self?.handleIMU(acceleration: accel, deltaTime: dt)
+                Task { @MainActor [weak self] in
+                    self?.handleIMU(acceleration: accel, deltaTime: dt)
+                }
             }
 
             // Start Live Activity in Dynamic Island
@@ -241,8 +260,12 @@ final class TrackingManager {
                 longitude: tracker.lastLocation?.coordinate.longitude ?? 9.0
             )
 
-            stateMachine.gpsLockAcquired()
-            self.state = stateMachine.currentState
+            // Now that every subsystem is up, flip the public flags and
+            // advance the state machine on the main actor.
+            self.isTracking = true
+            self.stateMachine.start()
+            self.stateMachine.gpsLockAcquired()
+            self.state = self.stateMachine.currentState
         }
 
         return true
@@ -257,7 +280,9 @@ final class TrackingManager {
 
     @discardableResult
     func stopTracking() -> StopSummary {
+        // Idempotent: double-stop is a no-op with a zero summary.
         guard isTracking else {
+            print("[TrackingManager] stopTracking ignored: not currently tracking")
             return StopSummary(
                 finalAverageSpeedKmh: 0,
                 totalDistanceKm: 0,
@@ -340,6 +365,35 @@ final class TrackingManager {
             stopTracking()
         }
     }
+
+    // MARK: - Background Task Hooks
+
+    /// Time elapsed in the current state-machine state (seconds).
+    /// Used by `BackgroundTaskManager` to decide if a session has gone stale.
+    var stateAge: TimeInterval { stateMachine.timeInCurrentState }
+
+    /// Re-push the latest state to the Live Activity (e.g. from a BG refresh).
+    func refreshLiveActivity() {
+        guard let liveActivity = liveActivityManager,
+              let calc = locationTracker?.calculator else { return }
+        liveActivity.update(
+            speedKmh: averageSpeed,
+            instantKmh: instantSpeed,
+            distanceKm: calc.totalDistanceMeters / 1000,
+            elapsedSeconds: calc.elapsedTime(),
+            confidence: confidence,
+            isGPSLost: state == .gpsLost
+        )
+    }
+
+    /// Trims state-machine transition history.
+    /// `TrackingStateMachine` already self-trims to 100, this is here as an
+    /// explicit hook for `BackgroundTaskManager.performCleanupMaintenance`.
+    func compactStateHistory() {
+        // The state machine self-compacts on every transition, so this is a
+        // no-op today. Kept as a stable API surface for the BG task to call.
+        _ = stateMachine.transitionHistory.count
+    }
 }
 
 // MARK: - Session Persistence
@@ -353,6 +407,8 @@ extension TrackingManager {
         store.addDistanceKm(calc.totalDistanceMeters / 1000)
         store.addTrackingSeconds(calc.elapsedTime())
 
-        // Future: save full TutorRecord to SwiftData
+        // TODO: SwiftData integration — build a `TutorRecord` from the current
+        // session and pass it to `store.saveTutorRecord(_:in:)` together with
+        // the app's `ModelContext` (created in `VeloxApp.modelContainer`).
     }
 }

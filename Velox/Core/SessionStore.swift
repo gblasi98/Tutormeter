@@ -16,24 +16,32 @@ import SwiftData
 final class SessionStore {
     // MARK: - Keys
     private enum Keys: String {
-        case lastSessionState = "velox.last_session_state"
-        case lastSessionStartTime = "velox.last_session_start"
-        case lastCalibrationBiasX = "velox.calibration.biasX"
-        case lastCalibrationBiasY = "velox.calibration.biasY"
-        case lastCalibrationBiasZ = "velox.calibration.biasZ"
-        case lastCalibrationNoise = "velox.calibration.noiseVariance"
-        case lastCalibrationDate = "velox.calibration.date"
-        case totalSessions = "velox.total_sessions"
-        case totalDistanceKm = "velox.total_distance_km"
-        case totalTrackingSeconds = "velox.total_tracking_seconds"
+        case lastSessionState = "tutormeter.last_session_state"
+        case lastSessionStartTime = "tutormeter.last_session_start"
+        case lastCalibrationBiasX = "tutormeter.calibration.biasX"
+        case lastCalibrationBiasY = "tutormeter.calibration.biasY"
+        case lastCalibrationBiasZ = "tutormeter.calibration.biasZ"
+        case lastCalibrationNoise = "tutormeter.calibration.noiseVariance"
+        case lastCalibrationDate = "tutormeter.calibration.date"
+        case totalSessions = "tutormeter.total_sessions"
+        case totalDistanceKm = "tutormeter.total_distance_km"
+        case totalTrackingSeconds = "tutormeter.total_tracking_seconds"
     }
 
     private let defaults: UserDefaults
+    private let config: TutormeterConfiguration
+    private let dateProvider: any DateProvider
 
     // MARK: - Init
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        config: TutormeterConfiguration = .shared,
+        dateProvider: any DateProvider = SystemDateProvider()
+    ) {
         self.defaults = defaults
+        self.config = config
+        self.dateProvider = dateProvider
     }
 
     // MARK: - Session State Persistence
@@ -79,7 +87,7 @@ final class SessionStore {
         defaults.set(result.biasY, forKey: Keys.lastCalibrationBiasY.rawValue)
         defaults.set(result.biasZ, forKey: Keys.lastCalibrationBiasZ.rawValue)
         defaults.set(result.noiseVariance, forKey: Keys.lastCalibrationNoise.rawValue)
-        defaults.set(Date().timeIntervalSince1970, forKey: Keys.lastCalibrationDate.rawValue)
+        defaults.set(dateProvider.now().timeIntervalSince1970, forKey: Keys.lastCalibrationDate.rawValue)
     }
 
     /// Recovers the last calibration data, if still valid (< 30 minutes old).
@@ -88,7 +96,7 @@ final class SessionStore {
         guard lastDate > 0 else { return nil }
 
         let age = Date().timeIntervalSince(Date(timeIntervalSince1970: lastDate))
-        guard age < 1800 else { // 30 minutes
+        guard age < config.calibrationMaxAgeSeconds else {
             clearCalibration()
             return nil
         }
@@ -129,15 +137,38 @@ final class SessionStore {
     }
 
     /// Adds to the total distance tracked across all sessions.
+    /// Negative or non-finite values are ignored.
     func addDistanceKm(_ km: Double) {
+        guard km.isFinite, km >= 0 else {
+            print("[SessionStore] addDistanceKm ignored invalid value: \(km)")
+            return
+        }
         let current = defaults.double(forKey: Keys.totalDistanceKm.rawValue)
         defaults.set(current + km, forKey: Keys.totalDistanceKm.rawValue)
     }
 
     /// Adds to the total tracking time.
+    /// Negative or non-finite values are ignored.
     func addTrackingSeconds(_ seconds: TimeInterval) {
+        guard seconds.isFinite, seconds >= 0 else {
+            print("[SessionStore] addTrackingSeconds ignored invalid value: \(seconds)")
+            return
+        }
         let current = defaults.double(forKey: Keys.totalTrackingSeconds.rawValue)
         defaults.set(current + seconds, forKey: Keys.totalTrackingSeconds.rawValue)
+    }
+
+    /// Persists a completed TutorRecord.
+    /// - Note: Wire this up to the app's SwiftData ModelContext when calling
+    ///   from `TrackingManager.saveCompletedSession()`. The SwiftData
+    ///   `@Model` definition lives in `SpeedCalculator.swift`.
+    func saveTutorRecord(_ record: TutorRecord, in context: ModelContext) {
+        context.insert(record)
+        do {
+            try context.save()
+        } catch {
+            print("[SessionStore] Failed to save TutorRecord: \(error.localizedDescription)")
+        }
     }
 
     /// Returns lifetime statistics.
@@ -174,12 +205,9 @@ final class SessionStore {
 
         guard wasTracking, let start = startTime else { return false }
 
-        // If the app was terminated < 10 minutes ago, the session might still be valid
+        // Sessions older than the configured max age are considered stale.
         let age = Date().timeIntervalSince(start)
-        let terminatedAge = Date().timeIntervalSince(start) // simplified
-
-        // Session older than 30 minutes is definitely stale
-        guard age < 1800 else {
+        guard age < config.sessionMaxAgeSeconds else {
             clearSessionState()
             return false
         }
@@ -201,9 +229,7 @@ final class SessionStore {
         }
 
         let age = Date().timeIntervalSince(start)
-
-        // Can recover if < 30 minutes old
-        let canRecover = age < 1800
+        let canRecover = age < config.sessionMaxAgeSeconds
 
         return (true, age, canRecover)
     }

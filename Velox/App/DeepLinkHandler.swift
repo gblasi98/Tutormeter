@@ -5,10 +5,10 @@ import Foundation
 /// Routes incoming URL scheme invocations to the appropriate action.
 ///
 /// Supported URL schemes:
-/// - `velox://start-tracking`          → Begin speed monitoring
-/// - `velox://start-tracking?wait`     → Wait for Tutor detection before monitoring
-/// - `velox://stop-tracking`           → Stop monitoring
-/// - `velox://status`                  → Return current status (for Shortcuts)
+/// - `tutormeter://start-tracking`          → Begin speed monitoring
+/// - `tutormeter://start-tracking?wait`     → Wait for Tutor detection before monitoring
+/// - `tutormeter://stop-tracking`           → Stop monitoring
+/// - `tutormeter://status`                  → Return current status (for Shortcuts)
 ///
 /// These URLs can be triggered from:
 /// - The iOS Shortcuts app (Open URL action)
@@ -19,7 +19,7 @@ import Foundation
 struct DeepLinkHandler {
     // MARK: - URL Parsing
 
-    /// Parses and executes a Velox deep link URL.
+    /// Parses and executes a Tutormeter deep link URL.
     /// - Parameter url: The URL to handle.
     /// - Returns: Whether the URL was recognized and handled.
     @discardableResult
@@ -59,16 +59,16 @@ struct DeepLinkHandler {
 
     /// Returns a URL for starting tracking (for use in Shortcuts).
     static var startTrackingURL: URL {
-        URL(string: "velox://start-tracking")!
+        URL(string: "tutormeter://start-tracking")!
     }
 
     /// Returns a URL for starting tracking in wait mode.
     static var startTrackingWaitURL: URL {
-        URL(string: "velox://start-tracking?wait")!
+        URL(string: "tutormeter://start-tracking?wait")!
     }
 
     /// Returns a URL for stopping tracking.
     static var stopTrackingURL: URL {
-        URL(string: "velox://stop-tracking")!
+        URL(string: "tutormeter://stop-tracking")!
     }
 }

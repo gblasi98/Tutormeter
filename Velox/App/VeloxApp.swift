@@ -1,18 +1,18 @@
 import SwiftUI
 
-/// Main entry point for the Velox application.
+/// Main entry point for the Tutormeter application.
 ///
-/// Velox monitors your average speed in speed camera (Tutor) zones
+/// Tutormeter monitors your average speed in speed camera (Tutor) zones
 /// and displays it as an overlay while you use Waze or other navigation apps.
 ///
 /// Activation methods:
-/// - Siri Shortcut: "Hey Siri, avvia monitoraggio Velox"
-/// - URL Scheme: `velox://start-tracking`
+/// - Siri Shortcut: "Hey Siri, avvia monitoraggio Tutormeter"
+/// - URL Scheme: `tutormeter://start-tracking`
 /// - CarPlay: Automatic on connection
 /// - Manual: Tap "Start" in the app
 @main
-struct VeloxApp: App {
-    @UIApplicationDelegateAdaptor(VeloxAppDelegate.self) var appDelegate
+struct TutormeterApp: App {
+    @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
     @State private var trackingManager = TrackingManager.shared
 
     var body: some Scene {
@@ -72,7 +72,7 @@ struct ContentView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Velox needs location access to calculate average speed. Enable it in Settings.")
+                Text("Tutormeter needs location access to calculate average speed. Enable it in Settings.")
             }
         }
     }
@@ -276,7 +276,7 @@ struct ContentView: View {
 
     private var shortcutItems: [(phrase: String, icon: String)] {
         [
-            ("Hey Siri,\nAvvia Velox", "mic.fill"),
+            ("Hey Siri,\nAvvia Tutormeter", "mic.fill"),
             ("Avvia\nMonitoraggio", "speedometer"),
             ("Qual è la\nmia velocità?", "info.circle")
         ]

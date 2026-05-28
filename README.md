@@ -134,8 +134,8 @@ open Tutormeter.xcodeproj
 
 # Run tests
 xcodebuild test \
-  -project Velox.xcodeproj \
-  -scheme Velox \
+  -project Tutormeter.xcodeproj \
+  -scheme Tutormeter \
   -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
 ```
 

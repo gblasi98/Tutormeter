@@ -9,31 +9,31 @@ struct DeepLinkHandlerTests {
 
     @Test("Valid start-tracking URL is recognized")
     func validStartTrackingURL() {
-        let url = URL(string: "velox://start-tracking")!
+        let url = URL(string: "tutormeter://start-tracking")!
         #expect(DeepLinkHandler.handle(url))
     }
 
     @Test("Valid start-tracking with wait param")
     func startTrackingWithWait() {
-        let url = URL(string: "velox://start-tracking?wait")!
+        let url = URL(string: "tutormeter://start-tracking?wait")!
         #expect(DeepLinkHandler.handle(url))
     }
 
     @Test("Valid stop-tracking URL is recognized")
     func validStopTrackingURL() {
-        let url = URL(string: "velox://stop-tracking")!
+        let url = URL(string: "tutormeter://stop-tracking")!
         #expect(DeepLinkHandler.handle(url))
     }
 
     @Test("Status URL is recognized")
     func statusURLRecognized() {
-        let url = URL(string: "velox://status")!
+        let url = URL(string: "tutormeter://status")!
         #expect(DeepLinkHandler.handle(url))
     }
 
     @Test("Unknown host returns false")
     func unknownHostReturnsFalse() {
-        let url = URL(string: "velox://unknown-action")!
+        let url = URL(string: "tutormeter://unknown-action")!
         #expect(!DeepLinkHandler.handle(url))
     }
 
@@ -45,15 +45,15 @@ struct DeepLinkHandlerTests {
 
     @Test("Wrong scheme returns false")
     func wrongSchemeURL() {
-        let url = URL(string: "https://velox/start-tracking")!
+        let url = URL(string: "https://tutormeter/start-tracking")!
         #expect(!DeepLinkHandler.handle(url))
     }
 
     @Test("URL generator creates correct URLs")
     func urlGenerators() {
-        #expect(DeepLinkHandler.startTrackingURL.absoluteString == "velox://start-tracking")
-        #expect(DeepLinkHandler.startTrackingWaitURL.absoluteString == "velox://start-tracking?wait")
-        #expect(DeepLinkHandler.stopTrackingURL.absoluteString == "velox://stop-tracking")
+        #expect(DeepLinkHandler.startTrackingURL.absoluteString == "tutormeter://start-tracking")
+        #expect(DeepLinkHandler.startTrackingWaitURL.absoluteString == "tutormeter://start-tracking?wait")
+        #expect(DeepLinkHandler.stopTrackingURL.absoluteString == "tutormeter://stop-tracking")
     }
 }
 

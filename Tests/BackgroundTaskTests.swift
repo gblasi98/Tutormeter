@@ -9,8 +9,8 @@ struct BackgroundTaskManagerTests {
 
     @Test("Task identifiers are correct")
     func taskIdentifiers() {
-        #expect(BackgroundTaskManager.refreshTaskID == "com.velox.refresh")
-        #expect(BackgroundTaskManager.cleanupTaskID == "com.velox.cleanup")
+        #expect(BackgroundTaskManager.refreshTaskID == "com.tutormeter.refresh")
+        #expect(BackgroundTaskManager.cleanupTaskID == "com.tutormeter.cleanup")
     }
 
     @Test("Initial state: not registered, zero refreshes")
@@ -30,8 +30,8 @@ struct SessionStoreTests {
 
     init() {
         // Use a dedicated suite to avoid polluting real UserDefaults
-        let defaults = UserDefaults(suiteName: "com.velox.tests")!
-        defaults.removePersistentDomain(forName: "com.velox.tests")
+        let defaults = UserDefaults(suiteName: "com.tutormeter.tests")!
+        defaults.removePersistentDomain(forName: "com.tutormeter.tests")
         self.store = SessionStore(defaults: defaults)
     }
 

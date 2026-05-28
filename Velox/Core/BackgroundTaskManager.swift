@@ -1,9 +1,10 @@
 import Foundation
 import BackgroundTasks
+import SwiftData
 
 // MARK: - Background Task Manager
 
-/// Manages iOS background task scheduling and execution for Velox.
+/// Manages iOS background task scheduling and execution for Tutormeter.
 ///
 /// Background tasks are essential because iOS may suspend the app at any time
 /// when it's not in the foreground. Even with background location updates enabled,
@@ -11,8 +12,8 @@ import BackgroundTasks
 /// windows for critical operations.
 ///
 /// Registered tasks:
-/// - `com.velox.refresh`: Periodic state check and Kalman filter maintenance
-/// - `com.velox.cleanup`: Clean up stale sessions and orphaned Live Activities
+/// - `com.tutormeter.refresh`: Periodic state check and Kalman filter maintenance
+/// - `com.tutormeter.cleanup`: Clean up stale sessions and orphaned Live Activities
 ///
 /// Usage:
 /// - Call `registerTasks()` in `application(_:didFinishLaunchingWithOptions:)`
@@ -20,13 +21,21 @@ import BackgroundTasks
 @MainActor
 final class BackgroundTaskManager {
     // MARK: - Task Identifiers
-    static let refreshTaskID = "com.velox.refresh"
-    static let cleanupTaskID = "com.velox.cleanup"
+    static let refreshTaskID = "com.tutormeter.refresh"
+    static let cleanupTaskID = "com.tutormeter.cleanup"
+
+    // MARK: - Dependencies
+    private let config: TutormeterConfiguration
 
     // MARK: - State
     private var isRegistered = false
     private var refreshCount: Int = 0
     private var lastRefreshTime: Date = Date()
+
+    // MARK: - Init
+    init(config: TutormeterConfiguration = .shared) {
+        self.config = config
+    }
 
     // MARK: - Registration
 
@@ -43,7 +52,11 @@ final class BackgroundTaskManager {
             forTaskWithIdentifier: Self.refreshTaskID,
             using: nil
         ) { [weak self] task in
-            self?.handleRefresh(task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self?.handleRefresh(refreshTask)
         }
 
         // Register cleanup task
@@ -51,7 +64,11 @@ final class BackgroundTaskManager {
             forTaskWithIdentifier: Self.cleanupTaskID,
             using: nil
         ) { [weak self] task in
-            self?.handleCleanup(task as! BGProcessingTask)
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self?.handleCleanup(processingTask)
         }
 
         isRegistered = true
@@ -68,73 +85,65 @@ final class BackgroundTaskManager {
     /// Should be called after each background location update.
     func scheduleRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)
-
-        // Request execution no sooner than 15 minutes from now
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
-
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            print("[BackgroundTaskManager] Failed to schedule refresh: \(error.localizedDescription)")
-        }
+        request.earliestBeginDate = Date(timeIntervalSinceNow: config.backgroundRefreshIntervalSeconds)
+        submit(request, kind: "refresh", retryAllowed: true)
     }
 
     /// Schedules a cleanup task for housekeeping operations.
     /// Runs less frequently (every few hours).
     func scheduleCleanup() {
         let request = BGProcessingTaskRequest(identifier: Self.cleanupTaskID)
-
-        // Processing tasks require external power (plugged in)
         request.requiresExternalPower = false
-
-        // Network connectivity for potential sync (future)
         request.requiresNetworkConnectivity = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: config.backgroundCleanupIntervalSeconds)
+        submit(request, kind: "cleanup", retryAllowed: true)
+    }
 
-        // Run no sooner than 2 hours from now
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 2 * 3600)
-
+    /// Submits a BG task request with do-catch + a single 1s-delayed retry.
+    private func submit(_ request: BGTaskRequest, kind: String, retryAllowed: Bool) {
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
-            print("[BackgroundTaskManager] Failed to schedule cleanup: \(error.localizedDescription)")
+            print("[BackgroundTaskManager] Failed to schedule \(kind): \(error.localizedDescription)")
+            guard retryAllowed else { return }
+
+            // Single fallback retry after 1 second.
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard self != nil else { return }
+                do {
+                    try BGTaskScheduler.shared.submit(request)
+                    print("[BackgroundTaskManager] Retry succeeded for \(kind)")
+                } catch {
+                    print("[BackgroundTaskManager] Retry failed for \(kind): \(error.localizedDescription)")
+                }
+            }
         }
     }
 
     // MARK: - Task Handlers
 
     /// Handles the refresh background task.
-    /// Performs lightweight state maintenance:
-    /// - Checks if tracking session is still valid
-    /// - Cleans up stale Kalman filter state
-    /// - Schedules next refresh
     private func handleRefresh(_ task: BGAppRefreshTask) {
         let startTime = Date()
         refreshCount += 1
         lastRefreshTime = startTime
 
-        // Set expiration handler — iOS may kill the task
         task.expirationHandler = {
             print("[BackgroundTaskManager] Refresh task expired after \(Date().timeIntervalSince(startTime))s")
         }
 
         print("[BackgroundTaskManager] Refresh task #\(refreshCount) started")
 
-        // Perform maintenance
         performRefreshMaintenance()
 
-        // Schedule next refresh
         scheduleRefresh()
 
-        // Mark complete
         task.setTaskCompleted(success: true)
         print("[BackgroundTaskManager] Refresh completed in \(Date().timeIntervalSince(startTime))s")
     }
 
     /// Handles the cleanup background processing task.
-    /// Performs heavier housekeeping:
-    /// - Cleans up orphaned Live Activities
-    /// - Removes stale session data
-    /// - Compacts the transition history
     private func handleCleanup(_ task: BGProcessingTask) {
         let startTime = Date()
 
@@ -144,7 +153,7 @@ final class BackgroundTaskManager {
 
         print("[BackgroundTaskManager] Cleanup task started")
 
-        Task {
+        Task { @MainActor in
             await performCleanupMaintenance()
             task.setTaskCompleted(success: true)
             print("[BackgroundTaskManager] Cleanup completed in \(Date().timeIntervalSince(startTime))s")
@@ -154,31 +163,63 @@ final class BackgroundTaskManager {
     // MARK: - Maintenance Operations
 
     /// Performs lightweight state checks for the refresh task.
+    ///
+    /// Responsibilities:
+    /// - If tracking and GPS has been lost > threshold, flag the session as stale.
+    /// - Refresh the Live Activity (if any) so it doesn't go stale on the lock screen.
     private func performRefreshMaintenance() {
         let manager = TrackingManager.shared
 
-        // If tracking but no GPS fix for > 5 minutes, flag as stale
-        if manager.isTracking {
-            // TrackingManager handles its own staleness detection
-            // via the state machine's evaluateGPSQuality method
+        guard manager.isTracking else { return }
+
+        // If GPS has been lost for too long, flag the persisted session as stale.
+        if manager.state == .gpsLost,
+           manager.stateAge > config.backgroundStaleGPSThresholdSeconds {
+            print("[BackgroundTaskManager] GPS lost > \(Int(config.backgroundStaleGPSThresholdSeconds))s — clearing stale session state")
+            SessionStore().clearSessionState()
         }
 
-        // Compact state machine history
-        // (handled internally by StateMachine)
-
-        // Reschedule Live Activity if needed
-        // (handled by LiveActivityManager)
+        // Re-publish current state to the Live Activity so it doesn't dim.
+        manager.refreshLiveActivity()
     }
 
     /// Performs heavier cleanup operations.
+    ///
+    /// Responsibilities:
+    /// - End orphaned Live Activities.
+    /// - Compact the state-machine transition history (handled by StateMachine itself).
+    /// - Purge TutorRecord entries older than `backgroundOldRecordAgeSeconds`.
     private func performCleanupMaintenance() async {
-        // Clean up orphaned Live Activities
+        // 1. Clean up orphaned Live Activities
         await LiveActivityManager().cleanupOrphanedActivities()
 
-        // Compact transition history
-        // (handled internally by StateMachine)
+        // 2. Compact state-machine history
+        TrackingManager.shared.compactStateHistory()
 
-        // Future: clean up old TutorRecord entries from SwiftData
+        // 3. Purge old TutorRecord rows from SwiftData
+        await purgeOldTutorRecords()
+    }
+
+    /// Deletes TutorRecord entries older than the configured retention window.
+    private func purgeOldTutorRecords() async {
+        let cutoff = Date().addingTimeInterval(-config.backgroundOldRecordAgeSeconds)
+        do {
+            let container = try ModelContainer(for: TutorRecord.self)
+            let context = ModelContext(container)
+            let descriptor = FetchDescriptor<TutorRecord>(
+                predicate: #Predicate { $0.endDate < cutoff }
+            )
+            let stale = try context.fetch(descriptor)
+            for record in stale {
+                context.delete(record)
+            }
+            if !stale.isEmpty {
+                try context.save()
+                print("[BackgroundTaskManager] Purged \(stale.count) old TutorRecord(s)")
+            }
+        } catch {
+            print("[BackgroundTaskManager] purgeOldTutorRecords failed: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Diagnostic Information

@@ -30,6 +30,10 @@ struct SpeedCalculator {
     /// Previous KF position (for tracking KF distance).
     private var previousKFPosition: Double = 0.0
 
+    /// Source of "now" for time-dependent calculations. Injected so tests
+    /// can deterministically control the clock.
+    private let dateProvider: any DateProvider
+
     // MARK: - Configuration
     static let maxAccuracy: Double = 20.0
     static let gpsTimeout: TimeInterval = 5.0
@@ -39,12 +43,14 @@ struct SpeedCalculator {
 
     init(
         initialPosition: Double = 0.0,
-        initialVelocity: Double = 0.0
+        initialVelocity: Double = 0.0,
+        dateProvider: any DateProvider = SystemDateProvider()
     ) {
         self.kf = KalmanFilter1D(
             initialPosition: initialPosition,
             initialVelocity: initialVelocity
         )
+        self.dateProvider = dateProvider
     }
 
     /// Reconfigures the Kalman filter with calibration-derived noise parameters.
@@ -73,6 +79,13 @@ struct SpeedCalculator {
     /// - Returns: The updated average speed in km/h, or nil if the fix was rejected.
     @discardableResult
     mutating func processGPSFix(_ fix: GPSFix) -> Double? {
+        // Validate coordinates
+        guard fix.latitude.isFinite, fix.longitude.isFinite,
+              fix.latitude >= -90, fix.latitude <= 90,
+              fix.longitude >= -180, fix.longitude <= 180 else {
+            return currentAverageSpeedKmh()
+        }
+
         // Reject low-accuracy fixes
         guard fix.horizontalAccuracy <= Self.maxAccuracy else {
             return currentAverageSpeedKmh()
@@ -99,8 +112,9 @@ struct SpeedCalculator {
 
             let timeDelta = fix.timestamp.timeIntervalSince(previous.timestamp)
 
-            // Outlier rejection: skip unrealistic jumps (> 100 m/s = 360 km/h)
-            if timeDelta > 0 && (distance / timeDelta) < 100.0 {
+            // Outlier rejection: skip unrealistic jumps.
+            let cfg = TutormeterConfiguration.shared
+            if timeDelta > 0 && (distance / timeDelta) < cfg.maxSpeedJumpMetersPerSecond {
                 totalDistanceMeters += distance
                 fixCount += 1
 
@@ -112,7 +126,7 @@ struct SpeedCalculator {
 
                 // Track KF distance separately (for comparison)
                 let kfDistanceDelta = kf.position - previousKFPosition
-                if kfDistanceDelta > 0 && kfDistanceDelta < 100.0 {
+                if kfDistanceDelta > 0 && kfDistanceDelta < cfg.maxKalmanDistanceDeltaMeters {
                     totalKFDistanceMeters += kfDistanceDelta
                 }
 
@@ -136,6 +150,11 @@ struct SpeedCalculator {
     ///   - deltaTime: Time since last IMU sample in seconds.
     @discardableResult
     mutating func processIMU(acceleration: Double, deltaTime: TimeInterval) -> Double {
+        // Skip invalid samples to avoid corrupting the KF state.
+        guard deltaTime > 0, acceleration.isFinite, !acceleration.isNaN else {
+            return kf.velocity
+        }
+
         imuSampleCount += 1
 
         // Kalman filter predict step
@@ -144,10 +163,11 @@ struct SpeedCalculator {
         // If GPS has been lost, the KF predicts without corrections.
         // We accumulate KF distance even during GPS loss for dead reckoning.
         if let lastGps = lastFix {
-            let gpsAge = Date().timeIntervalSince(lastGps.timestamp)
+            let gpsAge = dateProvider.now().timeIntervalSince(lastGps.timestamp)
             if gpsAge > Self.gpsTimeout {
                 let kfDistanceDelta = kf.position - previousKFPosition
-                if kfDistanceDelta > 0 && kfDistanceDelta < 200.0 {
+                let maxDelta = TutormeterConfiguration.shared.maxKalmanDistanceDeltaMeters
+                if kfDistanceDelta > 0 && kfDistanceDelta < maxDelta {
                     totalKFDistanceMeters += kfDistanceDelta
                 }
                 previousKFPosition = kf.position
@@ -164,7 +184,7 @@ struct SpeedCalculator {
     func currentAverageSpeedKmh() -> Double {
         guard let start = startTime else { return 0.0 }
 
-        let elapsed = Date().timeIntervalSince(start)
+        let elapsed = dateProvider.now().timeIntervalSince(start)
         guard elapsed > 0 else { return 0.0 }
 
         // Use KF distance if filter has converged, else raw GPS
@@ -186,7 +206,7 @@ struct SpeedCalculator {
     /// Returns the elapsed tracking time in seconds.
     func elapsedTime() -> TimeInterval {
         guard let start = startTime else { return 0 }
-        return Date().timeIntervalSince(start)
+        return dateProvider.now().timeIntervalSince(start)
     }
 
     /// Returns the total number of valid GPS fixes processed.
@@ -318,7 +338,7 @@ final class TutorRecord {
     }
 
     var exceededLimit: Bool {
-        averageSpeedKmh > 130.0
+        averageSpeedKmh > TutormeterConfiguration.shared.speedLimitKmh
     }
 }
 

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Tracking State Machine
 
-/// Finite state machine for the Velox tracking lifecycle.
+/// Finite state machine for the Tutormeter tracking lifecycle.
 ///
 /// States:
 /// ```
@@ -144,14 +144,15 @@ final class TrackingStateMachine {
         timeSinceLastFix: TimeInterval,
         kalmanDiverged: Bool
     ) {
+        let cfg = TutormeterConfiguration.shared
         switch currentState {
         case .tracking:
-            if !hasGPSFix && timeSinceLastFix > 5.0 {
+            if !hasGPSFix && timeSinceLastFix > cfg.stateMachineGPSLostThresholdSeconds {
                 gpsSignalLost()
             }
 
         case .gpsLost:
-            if hasGPSFix && timeSinceLastFix < 2.0 {
+            if hasGPSFix && timeSinceLastFix < cfg.stateMachineGPSRecoveryThresholdSeconds {
                 gpsSignalRecovered()
             } else if kalmanDiverged {
                 // Kalman filter has diverged — GPS must be gone for too long.

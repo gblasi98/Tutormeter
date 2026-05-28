@@ -16,7 +16,7 @@ import CarPlay
 /// 3. **No interaction required**: Auto-updating, minimal driver input
 /// 4. **Safety first**: Never distract the driver
 @MainActor
-final class VeloxCarPlayManager {
+final class TutormeterCarPlayManager {
     // MARK: - Data Access
 
     /// The shared tracking manager instance.

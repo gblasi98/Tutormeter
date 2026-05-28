@@ -3,12 +3,12 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-// MARK: - Velox Live Activity Attributes
+// MARK: - Tutormeter Live Activity Attributes
 
-/// Static attributes for the Velox Live Activity.
+/// Static attributes for the Tutormeter Live Activity.
 /// These are set once when the activity starts and never change.
-struct VeloxActivityAttributes: ActivityAttributes, Sendable {
-    typealias ContentState = VeloxActivityContentState
+struct TutormeterActivityAttributes: ActivityAttributes, Sendable {
+    typealias ContentState = TutormeterActivityContentState
 
     /// The type of speed zone being monitored.
     enum ZoneType: String, Codable, Sendable {
@@ -22,10 +22,10 @@ struct VeloxActivityAttributes: ActivityAttributes, Sendable {
     let startLongitude: Double
 }
 
-// MARK: - Velox Live Activity Content State
+// MARK: - Tutormeter Live Activity Content State
 
 /// Dynamic content state updated periodically during tracking.
-struct VeloxActivityContentState: Codable, Hashable, Sendable {
+struct TutormeterActivityContentState: Codable, Hashable, Sendable {
     /// Current average speed in km/h.
     var averageSpeedKmh: Double
 
@@ -65,11 +65,11 @@ struct VeloxActivityContentState: Codable, Hashable, Sendable {
 
 // MARK: - Live Activity Widget
 
-/// Defines the Dynamic Island and Lock Screen presentation for Velox.
+/// Defines the Dynamic Island and Lock Screen presentation for Tutormeter.
 @available(iOS 16.1, *)
-struct VeloxLiveActivity: Widget {
+struct TutormeterLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: VeloxActivityAttributes.self) { context in
+        ActivityConfiguration(for: TutormeterActivityAttributes.self) { context in
             // MARK: Lock Screen Banner
             lockScreenView(context: context)
                 .activityBackgroundTint(Color.black.opacity(0.3))
@@ -109,7 +109,7 @@ struct VeloxLiveActivity: Widget {
     // MARK: - Lock Screen View
 
     @ViewBuilder
-    private func lockScreenView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func lockScreenView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         HStack(spacing: 0) {
             // Left: Speed
             VStack(alignment: .leading, spacing: 2) {
@@ -156,7 +156,7 @@ struct VeloxLiveActivity: Widget {
 
     // Expanded Leading: Speed with large text
     @ViewBuilder
-    private func expandedLeadingView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func expandedLeadingView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(context.state.formattedSpeed)
                 .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -170,7 +170,7 @@ struct VeloxLiveActivity: Widget {
 
     // Expanded Trailing: Time
     @ViewBuilder
-    private func expandedTrailingView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func expandedTrailingView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         VStack(alignment: .trailing, spacing: 2) {
             Text(context.state.formattedTime)
                 .font(.title3.weight(.medium).monospacedDigit())
@@ -183,7 +183,7 @@ struct VeloxLiveActivity: Widget {
 
     // Expanded Center: Zone + Confidence bar
     @ViewBuilder
-    private func expandedCenterView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func expandedCenterView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         HStack(spacing: 6) {
             Image(systemName: context.state.isGPSLost ? "location.slash" : "location.fill")
                 .font(.caption)
@@ -196,7 +196,7 @@ struct VeloxLiveActivity: Widget {
 
     // Expanded Bottom: Confidence bar + GPS status
     @ViewBuilder
-    private func expandedBottomView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func expandedBottomView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         VStack(spacing: 4) {
             // Confidence bar
             GeometryReader { geo in
@@ -232,7 +232,7 @@ struct VeloxLiveActivity: Widget {
 
     // Compact Leading: Small speed icon + value
     @ViewBuilder
-    private func compactLeadingView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func compactLeadingView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         HStack(spacing: 2) {
             Image(systemName: "speedometer")
                 .font(.caption2)
@@ -244,14 +244,14 @@ struct VeloxLiveActivity: Widget {
 
     // Compact Trailing: Time
     @ViewBuilder
-    private func compactTrailingView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func compactTrailingView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         Text(context.state.formattedTime)
             .font(.caption.monospacedDigit())
     }
 
     // Minimal: Just the speed number
     @ViewBuilder
-    private func minimalView(context: ActivityViewContext<VeloxActivityAttributes>) -> some View {
+    private func minimalView(context: ActivityViewContext<TutormeterActivityAttributes>) -> some View {
         Text(String(format: "%.0f", context.state.averageSpeedKmh))
             .font(.caption.bold().monospacedDigit())
             .foregroundColor(speedColor(context.state))
@@ -259,7 +259,7 @@ struct VeloxLiveActivity: Widget {
 
     // MARK: - Colors
 
-    private func speedColor(_ state: VeloxActivityContentState) -> Color {
+    private func speedColor(_ state: TutormeterActivityContentState) -> Color {
         if state.isOverLimit { return .red }
         if state.isGPSLost { return .yellow }
         if state.confidence > 0.7 { return .green }

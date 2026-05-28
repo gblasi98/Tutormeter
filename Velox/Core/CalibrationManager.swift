@@ -18,11 +18,15 @@ final class CalibrationManager {
     // MARK: - Configuration
 
     /// Minimum stationary duration required for valid calibration.
-    static let minimumStationarySeconds: TimeInterval = 2.0
+    static var minimumStationarySeconds: TimeInterval {
+        TutormeterConfiguration.shared.calibrationMinStationaryDurationSeconds
+    }
 
     /// Maximum acceleration magnitude to consider the device "stationary" (m/s²).
     /// Gravity ≈ 9.81, so we allow ±0.1 g variation.
-    static let stationaryThreshold: Double = 1.0
+    static var stationaryThreshold: Double {
+        TutormeterConfiguration.shared.calibrationStationaryThreshold
+    }
 
     // MARK: - State
 
@@ -32,6 +36,16 @@ final class CalibrationManager {
 
     /// Whether the device currently appears to be stationary.
     private(set) var isStationary = false
+
+    /// Source of "now" for stamping the calibration date and computing
+    /// staleness. Injected so tests can drive time deterministically.
+    private let dateProvider: any DateProvider
+
+    // MARK: - Init
+
+    init(dateProvider: any DateProvider = SystemDateProvider()) {
+        self.dateProvider = dateProvider
+    }
 
     // MARK: - Calibration
 
@@ -70,7 +84,7 @@ final class CalibrationManager {
         // Apply
         imuFilter.applyCalibration(result)
         lastCalibration = result
-        calibrationDate = Date()
+        calibrationDate = dateProvider.now()
 
         print("[CalibrationManager] Calibration complete: \(result.summary)")
         return result
@@ -106,9 +120,10 @@ final class CalibrationManager {
             return false
         }
 
-        // Reject if bias is > 0.2g (device may have been moving)
-        if abs(result.biasX) > 0.2 || abs(result.biasY) > 0.2 || abs(result.biasZ) > 0.2 {
-            print("[CalibrationManager] Rejected: bias magnitude exceeds 0.2g")
+        // Reject if any axis bias exceeds the configured threshold (device may have moved).
+        let maxBias = TutormeterConfiguration.shared.calibrationMaxBiasG
+        if abs(result.biasX) > maxBias || abs(result.biasY) > maxBias || abs(result.biasZ) > maxBias {
+            print("[CalibrationManager] Rejected: bias magnitude exceeds \(maxBias)g")
             return false
         }
 
@@ -120,13 +135,13 @@ final class CalibrationManager {
     /// Time since last successful calibration.
     var timeSinceLastCalibration: TimeInterval? {
         guard let date = calibrationDate else { return nil }
-        return Date().timeIntervalSince(date)
+        return dateProvider.now().timeIntervalSince(date)
     }
 
     /// Whether a recent calibration (< 30 minutes old) is available.
     var hasRecentCalibration: Bool {
         guard let elapsed = timeSinceLastCalibration else { return false }
-        return elapsed < 1800 // 30 minutes
+        return elapsed < TutormeterConfiguration.shared.calibrationMaxAgeSeconds
     }
 
     /// Resets calibration state (called at session end).

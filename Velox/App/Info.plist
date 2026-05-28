@@ -75,7 +75,7 @@
 					<key>UISceneConfigurationName</key>
 					<string>CarPlay Configuration</string>
 					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).VeloxCarPlaySceneDelegate</string>
+					<string>$(PRODUCT_MODULE_NAME).TutormeterCarPlaySceneDelegate</string>
 				</dict>
 			</array>
 		</dict>

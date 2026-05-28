@@ -3,7 +3,7 @@ import ActivityKit
 
 // MARK: - Live Activity Manager
 
-/// Manages the lifecycle of the Velox Live Activity in the Dynamic Island
+/// Manages the lifecycle of the Tutormeter Live Activity in the Dynamic Island
 /// and Lock Screen.
 ///
 /// Responsible for:
@@ -26,9 +26,19 @@ import ActivityKit
 @MainActor
 final class LiveActivityManager {
     // MARK: - State
-    private var currentActivity: Activity<VeloxActivityAttributes>?
+    private var currentActivity: Activity<TutormeterActivityAttributes>?
     private var updateCount: Int = 0
-    private var lastUpdateTime: Date = Date()
+    private var lastUpdateTime: Date
+
+    /// Source of "now" for rate-limiting and stale-activity detection.
+    private let dateProvider: any DateProvider
+
+    // MARK: - Init
+
+    init(dateProvider: any DateProvider = SystemDateProvider()) {
+        self.dateProvider = dateProvider
+        self.lastUpdateTime = dateProvider.now()
+    }
 
     /// Whether a Live Activity is currently active.
     var isActive: Bool {
@@ -37,20 +47,24 @@ final class LiveActivityManager {
 
     /// The time since the last content update was pushed.
     var timeSinceLastUpdate: TimeInterval {
-        Date().timeIntervalSince(lastUpdateTime)
+        dateProvider.now().timeIntervalSince(lastUpdateTime)
     }
 
     // MARK: - Configuration
     /// Minimum interval between update pushes (seconds).
-    /// ActivityKit enforces a rate limit; 1 second is the minimum.
-    static let minUpdateInterval: TimeInterval = 1.0
+    static var minUpdateInterval: TimeInterval {
+        TutormeterConfiguration.shared.liveActivityMinUpdateIntervalSeconds
+    }
 
     /// Maximum age of the activity before it's considered stale.
-    /// After this, the activity auto-ends.
-    static let maxActivityAge: TimeInterval = 3600.0 // 1 hour max
+    static var maxActivityAge: TimeInterval {
+        TutormeterConfiguration.shared.liveActivityMaxAgeSeconds
+    }
 
     /// Content relevance score (higher = more prominent in Dynamic Island).
-    static let relevanceScore: Double = 80.0
+    static var relevanceScore: Double {
+        TutormeterConfiguration.shared.liveActivityRelevanceScore
+    }
 
     // MARK: - Lifecycle
 
@@ -62,10 +76,18 @@ final class LiveActivityManager {
     /// - Returns: Whether the activity was started successfully.
     @discardableResult
     func start(
-        zoneType: VeloxActivityAttributes.ZoneType,
+        zoneType: TutormeterActivityAttributes.ZoneType,
         latitude: Double,
         longitude: Double
     ) -> Bool {
+        // Validate coordinates before requesting an activity.
+        guard latitude.isFinite, longitude.isFinite,
+              latitude >= -90, latitude <= 90,
+              longitude >= -180, longitude <= 180 else {
+            print("[LiveActivityManager] Invalid coordinates: (\(latitude), \(longitude))")
+            return false
+        }
+
         // Cancel any existing activity
         if let existing = currentActivity {
             endExisting(existing, reason: "New zone started")
@@ -77,13 +99,13 @@ final class LiveActivityManager {
             return false
         }
 
-        let attributes = VeloxActivityAttributes(
+        let attributes = TutormeterActivityAttributes(
             zoneType: zoneType,
             startLatitude: latitude,
             startLongitude: longitude
         )
 
-        let initialState = VeloxActivityContentState(
+        let initialState = TutormeterActivityContentState(
             averageSpeedKmh: 0.0,
             instantSpeedKmh: 0.0,
             distanceKm: 0.0,
@@ -103,7 +125,7 @@ final class LiveActivityManager {
 
             currentActivity = activity
             updateCount = 0
-            lastUpdateTime = Date()
+            lastUpdateTime = dateProvider.now()
 
             print("[LiveActivityManager] Started: \(activity.id)")
             return true
@@ -131,25 +153,32 @@ final class LiveActivityManager {
         confidence: Double,
         isGPSLost: Bool
     ) {
-        guard let activity = currentActivity else {
-            print("[LiveActivityManager] No active activity to update")
+        // Silently no-op when there's no activity. Logging here would spam
+        // the console on every tick when no zone is active.
+        guard let activity = currentActivity else { return }
+
+        // Reject obviously invalid inputs (negative speed/distance).
+        guard speedKmh >= 0, distanceKm >= 0,
+              speedKmh.isFinite, distanceKm.isFinite else {
             return
         }
 
         // Rate limit
-        let now = Date()
+        let now = dateProvider.now()
         guard now.timeIntervalSince(lastUpdateTime) >= Self.minUpdateInterval else {
             return
         }
 
-        let newState = VeloxActivityContentState(
+        let limit = TutormeterConfiguration.shared.speedLimitKmh
+
+        let newState = TutormeterActivityContentState(
             averageSpeedKmh: speedKmh,
             instantSpeedKmh: instantKmh,
             distanceKm: distanceKm,
             elapsedSeconds: elapsedSeconds,
             confidence: confidence,
             trackingState: isGPSLost ? "gpsLost" : "tracking",
-            isOverLimit: speedKmh > 130.0,
+            isOverLimit: speedKmh > limit,
             isGPSLost: isGPSLost
         )
 
@@ -159,7 +188,7 @@ final class LiveActivityManager {
                 body: LocalizedStringResource(
                     stringLiteral: isGPSLost
                         ? "Using sensors to estimate speed."
-                        : speedKmh > 130.0
+                        : speedKmh > limit
                             ? "Above limit: \(Int(speedKmh)) km/h"
                             : "Average: \(Int(speedKmh)) km/h"
                 ),
@@ -168,7 +197,7 @@ final class LiveActivityManager {
 
             await activity.update(
                 .init(state: newState, staleDate: nil),
-                alertConfiguration: speedKmh > 130.0 || isGPSLost ? alertConfig : nil
+                alertConfiguration: speedKmh > limit || isGPSLost ? alertConfig : nil
             )
 
             updateCount += 1
@@ -187,22 +216,23 @@ final class LiveActivityManager {
     ///   - distanceKm: Total distance in the zone.
     ///   - durationSeconds: Total time in the zone.
     func end(finalSpeedKmh: Double, distanceKm: Double, durationSeconds: TimeInterval) {
-        guard let activity = currentActivity else {
-            print("[LiveActivityManager] No active activity to end")
-            return
-        }
+        // Already ended (or never started) — no-op, this is idempotent.
+        guard let activity = currentActivity else { return }
 
-        let finalState = VeloxActivityContentState(
+        let limit = TutormeterConfiguration.shared.speedLimitKmh
+
+        let finalState = TutormeterActivityContentState(
             averageSpeedKmh: finalSpeedKmh,
             instantSpeedKmh: 0.0,
             distanceKm: distanceKm,
             elapsedSeconds: durationSeconds,
             confidence: 1.0,
             trackingState: "completed",
-            isOverLimit: finalSpeedKmh > 130.0,
+            isOverLimit: finalSpeedKmh > limit,
             isGPSLost: false
         )
 
+        // Detach so this can be called from a sync context safely.
         Task {
             await activity.end(
                 .init(state: finalState, staleDate: nil),
@@ -225,10 +255,11 @@ final class LiveActivityManager {
 
     /// Checks for stale or orphaned activities (e.g., from a previous launch).
     func cleanupOrphanedActivities() async {
-        for activity in Activity<VeloxActivityAttributes>.activities {
-            let age = Date().timeIntervalSince(activity.contentState.elapsedSeconds > 0
-                ? Date().addingTimeInterval(-activity.contentState.elapsedSeconds)
-                : Date())
+        for activity in Activity<TutormeterActivityAttributes>.activities {
+            let now = dateProvider.now()
+            let age = now.timeIntervalSince(activity.contentState.elapsedSeconds > 0
+                ? now.addingTimeInterval(-activity.contentState.elapsedSeconds)
+                : now)
 
             if age > Self.maxActivityAge {
                 await activity.end(nil, dismissalPolicy: .immediate)
@@ -239,7 +270,7 @@ final class LiveActivityManager {
 
     // MARK: - Helpers
 
-    private func endExisting(_ activity: Activity<VeloxActivityAttributes>, reason: String) {
+    private func endExisting(_ activity: Activity<TutormeterActivityAttributes>, reason: String) {
         Task {
             await activity.end(nil, dismissalPolicy: .immediate)
         }

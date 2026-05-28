@@ -84,6 +84,18 @@ struct KalmanFilter1D {
     ///   - acceleration: Longitudinal acceleration in m/s².
     ///   - deltaTime: Time step in seconds.
     mutating func predict(acceleration: Double, deltaTime: TimeInterval) {
+        let config = TutormeterConfiguration.shared
+
+        // Sanity checks: skip predict on invalid inputs rather than corrupting state.
+        guard deltaTime > 0, deltaTime < config.kalmanMaxDeltaTimeSeconds else {
+            return
+        }
+        guard acceleration.isFinite,
+              !acceleration.isNaN,
+              abs(acceleration) < config.kalmanMaxAccelerationMetersPerSecondSquared else {
+            return
+        }
+
         let dt = deltaTime
 
         // State transition Jacobian (F matrix)
@@ -141,6 +153,11 @@ struct KalmanFilter1D {
     /// - Returns: Kalman gain magnitude (for diagnostic purposes).
     @discardableResult
     mutating func update(measurement: Double) -> Double {
+        // Skip update on invalid measurements rather than corrupting state.
+        guard measurement.isFinite, !measurement.isNaN else {
+            return 0.0
+        }
+
         // H = [1, 0], R = measurementNoise
         let H0 = 1.0
         let H1 = 0.0
@@ -198,15 +215,16 @@ struct KalmanFilter1D {
     }
 
     /// Whether the filter has converged to a stable estimate.
-    /// Considered converged when position uncertainty < 3m.
     var hasConverged: Bool {
-        positionUncertainty < 3.0
+        positionUncertainty < TutormeterConfiguration.shared.kalmanConvergenceThresholdMeters
     }
 
     /// Whether the filter has diverged (uncertainty exploded).
     /// This happens during extended GPS loss without reliable IMU data.
     var hasDiverged: Bool {
-        positionUncertainty > 100.0 || velocityUncertainty > 20.0
+        let cfg = TutormeterConfiguration.shared
+        return positionUncertainty > cfg.kalmanMaxDivergencePositionMeters
+            || velocityUncertainty > cfg.kalmanMaxDivergenceVelocityMetersPerSecond
     }
 
     // MARK: - Reset

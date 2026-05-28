@@ -4,7 +4,7 @@ import AppIntents
 
 // MARK: - Lock Screen Widget
 
-/// Lock Screen and Home Screen widget for quick Velox status at a glance.
+/// Lock Screen and Home Screen widget for quick Tutormeter status at a glance.
 ///
 /// Shows current tracking state and average speed without opening the app.
 /// Can be configured as:
@@ -12,19 +12,19 @@ import AppIntents
 /// - Lock Screen rectangular widget (speed + state)
 /// - Home Screen small widget (speed + status)
 @available(iOS 17.0, *)
-struct VeloxLockScreenWidget: Widget {
-    let kind: String = "VeloxLockScreenWidget"
+struct TutormeterLockScreenWidget: Widget {
+    let kind: String = "TutormeterLockScreenWidget"
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
-            intent: VeloxWidgetIntent.self,
-            provider: VeloxWidgetProvider()
+            intent: TutormeterWidgetIntent.self,
+            provider: TutormeterWidgetProvider()
         ) { entry in
-            VeloxWidgetEntryView(entry: entry)
+            TutormeterWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Velox Speed")
+        .configurationDisplayName("Tutormeter Speed")
         .description("Shows your current average speed in the speed camera zone.")
         .supportedFamilies([
             .accessoryCircular,
@@ -36,14 +36,14 @@ struct VeloxLockScreenWidget: Widget {
 
 // MARK: - Widget Intent
 
-struct VeloxWidgetIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Velox Configuration"
-    static var description = IntentDescription("Displays your current Velox tracking status.")
+struct TutormeterWidgetIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Tutormeter Configuration"
+    static var description = IntentDescription("Displays your current Tutormeter tracking status.")
 }
 
 // MARK: - Widget Timeline Entry
 
-struct VeloxWidgetEntry: TimelineEntry {
+struct TutormeterWidgetEntry: TimelineEntry {
     let date: Date
     let averageSpeedKmh: Double
     let instantSpeedKmh: Double
@@ -56,9 +56,9 @@ struct VeloxWidgetEntry: TimelineEntry {
 // MARK: - Widget Provider
 
 @MainActor
-struct VeloxWidgetProvider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> VeloxWidgetEntry {
-        VeloxWidgetEntry(
+struct TutormeterWidgetProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> TutormeterWidgetEntry {
+        TutormeterWidgetEntry(
             date: Date(),
             averageSpeedKmh: 127,
             instantSpeedKmh: 130,
@@ -70,19 +70,19 @@ struct VeloxWidgetProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(
-        for configuration: VeloxWidgetIntent,
+        for configuration: TutormeterWidgetIntent,
         in context: Context
-    ) async -> VeloxWidgetEntry {
+    ) async -> TutormeterWidgetEntry {
         placeholder(in: context)
     }
 
     func timeline(
-        for configuration: VeloxWidgetIntent,
+        for configuration: TutormeterWidgetIntent,
         in context: Context
-    ) async -> Timeline<VeloxWidgetEntry> {
+    ) async -> Timeline<TutormeterWidgetEntry> {
         let manager = TrackingManager.shared
 
-        let entry = VeloxWidgetEntry(
+        let entry = TutormeterWidgetEntry(
             date: Date(),
             averageSpeedKmh: manager.averageSpeed,
             instantSpeedKmh: manager.instantSpeed,
@@ -92,8 +92,11 @@ struct VeloxWidgetProvider: AppIntentTimelineProvider {
             trackingState: manager.state.rawValue
         )
 
-        // Refresh every 5 seconds when tracking, every 15 minutes when idle
-        let refreshInterval: TimeInterval = manager.isTracking ? 5 : 900
+        // Refresh cadence depends on tracking state.
+        let cfg = TutormeterConfiguration.shared
+        let refreshInterval: TimeInterval = manager.isTracking
+            ? cfg.widgetRefreshIntervalTrackingSeconds
+            : cfg.widgetRefreshIntervalIdleSeconds
         let nextRefresh = Date().addingTimeInterval(refreshInterval)
 
         return Timeline(entries: [entry], policy: .after(nextRefresh))
@@ -102,9 +105,9 @@ struct VeloxWidgetProvider: AppIntentTimelineProvider {
 
 // MARK: - Widget Entry View
 
-struct VeloxWidgetEntryView: View {
+struct TutormeterWidgetEntryView: View {
     @Environment(\.widgetFamily) var family
-    var entry: VeloxWidgetProvider.Entry
+    var entry: TutormeterWidgetProvider.Entry
 
     var body: some View {
         switch family {
@@ -213,7 +216,7 @@ struct VeloxWidgetEntryView: View {
 
     private var speedColor: Color {
         guard entry.isTracking else { return .gray }
-        if entry.averageSpeedKmh > 130 { return .red }
+        if entry.averageSpeedKmh > TutormeterConfiguration.shared.speedLimitKmh { return .red }
         if entry.isGPSLost { return .yellow }
         return .green
     }
@@ -240,8 +243,8 @@ struct VeloxWidgetEntryView: View {
 // MARK: - Widget Bundle
 
 @available(iOS 17.0, *)
-struct VeloxWidgetBundle: WidgetBundle {
+struct TutormeterWidgetBundle: WidgetBundle {
     var body: some Widget {
-        VeloxLockScreenWidget()
+        TutormeterLockScreenWidget()
     }
 }

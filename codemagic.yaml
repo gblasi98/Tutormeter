@@ -1,4 +1,4 @@
-# Codemagic CI/CD Configuration for Velox
+# Codemagic CI/CD Configuration for Tutormeter
 # Documentation: https://docs.codemagic.io/yaml/yaml/
 
 workflows:

@@ -40,15 +40,13 @@ final class IMUFilter {
     // MARK: - Configuration
 
     /// Cutoff frequency for the low-pass filter (Hz).
-    /// Lower = more smoothing, higher = more responsive.
-    /// Vehicle dynamics are below 5 Hz; engine vibration is above 10 Hz.
-    static let lowPassCutoffHz: Double = 5.0
+    static var lowPassCutoffHz: Double { TutormeterConfiguration.shared.imuLowPassCutoffHz }
 
-    /// Device motion update interval in seconds (100 Hz).
-    static let updateInterval: TimeInterval = 1.0 / 100.0
+    /// Device motion update interval in seconds.
+    static var updateInterval: TimeInterval { TutormeterConfiguration.shared.imuUpdateIntervalSeconds }
 
     /// Sampling duration for auto-calibration.
-    static let calibrationDuration: TimeInterval = 2.0
+    static var calibrationDuration: TimeInterval { TutormeterConfiguration.shared.calibrationMinStationaryDurationSeconds }
 
     // MARK: - Initialization
 
@@ -61,8 +59,12 @@ final class IMUFilter {
     /// Starts the IMU processing loop.
     /// - Parameter callback: Called with (longitudinalAcceleration_m_s2, deltaTime_s).
     func start(callback: @escaping (Double, TimeInterval) -> Void) {
-        guard !isRunning, motionManager.isDeviceMotionAvailable else {
-            print("[IMUFilter] Cannot start: unavailable or already running")
+        guard motionManager.isDeviceMotionAvailable else {
+            print("[IMUFilter] Cannot start: device motion not available")
+            return
+        }
+        guard !isRunning else {
+            print("[IMUFilter] Cannot start: already running")
             return
         }
 
@@ -131,8 +133,14 @@ final class IMUFilter {
         callback: (Double, TimeInterval) -> Void
     ) {
         let now = Date().timeIntervalSince1970
-        let dt = lastTimestamp.map { now - $0 } ?? Self.updateInterval
+        let rawDt = lastTimestamp.map { now - $0 } ?? Self.updateInterval
         lastTimestamp = now
+
+        let cfg = TutormeterConfiguration.shared
+        guard rawDt > 0 else { return }
+        // Clamp dt to a sane range — handles missed samples without spiking
+        // the integration step or freezing the filter.
+        let dt = min(max(rawDt, cfg.imuMinDeltaTimeSeconds), cfg.imuMaxDeltaTimeSeconds)
 
         // Step 1: Get user acceleration (gravity already compensated by CoreMotion)
         let rawAccel = motion.userAcceleration
@@ -269,7 +277,7 @@ struct CalibrationResult {
     let noiseVariance: Double
 
     /// Whether the calibration detected excessive noise (possible hardware issue).
-    var isNoisy: Bool { noiseVariance > 0.1 }
+    var isNoisy: Bool { noiseVariance > TutormeterConfiguration.shared.calibrationNoiseThreshold }
 
     /// Whether the calibration detected significant bias.
     var hasSignificantBias: Bool {

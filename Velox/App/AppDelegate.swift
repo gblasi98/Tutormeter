@@ -3,13 +3,13 @@ import BackgroundTasks
 
 // MARK: - App Delegate
 
-/// Application delegate for Velox — handles app lifecycle events:
+/// Application delegate for Tutormeter — handles app lifecycle events:
 /// - Background task registration (BGTaskScheduler)
 /// - Session recovery on relaunch after termination
 /// - State cleanup on termination
 ///
 /// Note: In SwiftUI apps, this is bridged via `UIApplicationDelegateAdaptor`.
-final class VeloxAppDelegate: NSObject, UIApplicationDelegate {
+final class TutormeterAppDelegate: NSObject, UIApplicationDelegate {
     private let backgroundTaskManager = BackgroundTaskManager()
     private let sessionStore = SessionStore()
 
@@ -19,7 +19,7 @@ final class VeloxAppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        print("[VeloxAppDelegate] didFinishLaunching")
+        print("[TutormeterAppDelegate] didFinishLaunching")
 
         // Register background tasks
         backgroundTaskManager.registerTasks()
@@ -33,12 +33,12 @@ final class VeloxAppDelegate: NSObject, UIApplicationDelegate {
     // MARK: - Background / Termination
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        print("[VeloxAppDelegate] didEnterBackground")
+        print("[TutormeterAppDelegate] didEnterBackground")
         saveStateBeforeBackground()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
-        print("[VeloxAppDelegate] willTerminate")
+        print("[TutormeterAppDelegate] willTerminate")
         saveStateBeforeBackground()
         TrackingManager.shared.stopTracking()
     }
@@ -67,7 +67,7 @@ final class VeloxAppDelegate: NSObject, UIApplicationDelegate {
             startTime: manager.isTracking ? Date() : nil
         )
 
-        print("[VeloxAppDelegate] State saved: tracking=\(manager.isTracking)")
+        print("[TutormeterAppDelegate] State saved: tracking=\(manager.isTracking)")
     }
 
     // MARK: - Recovery
@@ -77,20 +77,20 @@ final class VeloxAppDelegate: NSObject, UIApplicationDelegate {
         let (wasTracking, age, canRecover) = sessionStore.attemptSessionRecovery()
 
         guard wasTracking else {
-            print("[VeloxAppDelegate] No session to recover")
+            print("[TutormeterAppDelegate] No session to recover")
             return
         }
 
-        print("[VeloxAppDelegate] Found interrupted session (\(Int(age))s old)")
+        print("[TutormeterAppDelegate] Found interrupted session (\(Int(age))s old)")
 
         if canRecover {
-            print("[VeloxAppDelegate] Session is recent — attempting auto-resume")
+            print("[TutormeterAppDelegate] Session is recent — attempting auto-resume")
             // In Phase 5, we simply log this. Full auto-resume would require
             // re-initializing the LocationTracker, which is a Phase 7 feature.
             // For now, the user can manually restart tracking.
             sessionStore.clearSessionState()
         } else {
-            print("[VeloxAppDelegate] Session too old (\(Int(age))s) — discarding")
+            print("[TutormeterAppDelegate] Session too old (\(Int(age))s) — discarding")
             sessionStore.clearSessionState()
         }
     }
