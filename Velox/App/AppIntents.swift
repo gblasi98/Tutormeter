@@ -206,6 +206,11 @@ final class TrackingManager {
 
         errorMessage = nil
 
+        // Reset state machine if coming from a previous completed session.
+        if stateMachine.currentState == .completed {
+            stateMachine.reset()
+        }
+
         // Set public state immediately so UI and tests see the transition.
         // The state machine moves to .active (awaiting GPS lock), while the
         // actual service wiring happens asynchronously in the Task below.
@@ -332,10 +337,6 @@ final class TrackingManager {
         averageSpeed = 0
         instantSpeed = 0
         confidence = 0
-
-        // Reset state machine to .idle for the next session.
-        stateMachine.reset()
-        state = stateMachine.currentState
 
         return summary
     }
