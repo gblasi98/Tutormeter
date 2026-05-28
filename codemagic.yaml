@@ -160,13 +160,37 @@ workflows:
 
           if [ -z "$PROF_ID" ] && [ -n "$BUNDLE_ID" ] && [ -n "$CERT_ID" ]; then
             JWT=$(jwt)
-            curl -s -X POST "https://api.appstoreconnect.apple.com/v1/profiles" \
+            PROF_RESP=$(curl -s -X POST "https://api.appstoreconnect.apple.com/v1/profiles" \
               -H "Authorization: Bearer $JWT" \
               -H "Content-Type: application/json" \
-              -d "{\"data\":{\"type\":\"profiles\",\"attributes\":{\"name\":\"Tutormeter CI\",\"profileType\":\"IOS_APP_STORE\"},\"relationships\":{\"bundleId\":{\"data\":{\"type\":\"bundleIds\",\"id\":\"$BUNDLE_ID\"}},\"certificates\":{\"data\":[{\"type\":\"certificates\",\"id\":\"$CERT_ID\"}]}}}}"
-            echo "Profile created."
-          elif [ -n "$PROF_ID" ]; then
-            echo "Profile exists: $PROF_ID"
+              -d "{\"data\":{\"type\":\"profiles\",\"attributes\":{\"name\":\"Tutormeter CI\",\"profileType\":\"IOS_APP_STORE\"},\"relationships\":{\"bundleId\":{\"data\":{\"type\":\"bundleIds\",\"id\":\"$BUNDLE_ID\"}},\"certificates\":{\"data\":[{\"type\":\"certificates\",\"id\":\"$CERT_ID\"}]}}}}")
+            PROF_ID=$(echo "$PROF_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('data',{}).get('id',''))")
+            echo "Profile created: $PROF_ID"
+          fi
+
+          # Step 3: Download and install profile locally
+          if [ -n "$PROF_ID" ]; then
+            echo "--- Step 3: Download & Install Profile ---"
+            JWT=$(jwt)
+            PROF_DETAIL=$(curl -s -H "Authorization: Bearer $JWT" \
+              "https://api.appstoreconnect.apple.com/v1/profiles/$PROF_ID")
+            PROF_CONTENT=$(echo "$PROF_DETAIL" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data']['attributes']['profileContent'])")
+            PROF_UUID=$(echo "$PROF_DETAIL" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data']['attributes']['uuid'])")
+            mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+            echo "$PROF_CONTENT" | base64 -d > "$HOME/Library/MobileDevice/Provisioning Profiles/$PROF_UUID.mobileprovision"
+            echo "Profile installed: $PROF_UUID"
+
+            # Import certificate into keychain
+            if [ -f ~/signing/dist_cert.cer ] && [ -f ~/signing/dist_key.pem ]; then
+              echo "--- Step 4: Import Certificate ---"
+              security create-keychain -p "" build.keychain 2>/dev/null || true
+              security default-keychain -s build.keychain 2>/dev/null || true
+              security unlock-keychain -p "" build.keychain 2>/dev/null || true
+              security import ~/signing/dist_cert.cer -k build.keychain -T /usr/bin/codesign 2>/dev/null || true
+              security import ~/signing/dist_key.pem -k build.keychain -T /usr/bin/codesign 2>/dev/null || true
+              security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain 2>/dev/null || true
+              echo "Certificate imported."
+            fi
           fi
 
           rm -f "$AUTH_KEY"
