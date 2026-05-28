@@ -65,10 +65,12 @@ workflows:
       groups:
         - appstore
       xcode: "16.0"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tutormeter.app
       vars:
         XCODE_PROJECT: Tutormeter.xcodeproj
         XCODE_SCHEME: Tutormeter
-        BUNDLE_ID: com.tutormeter.app
     triggering:
       events:
         - tag
@@ -96,106 +98,49 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
-      - name: Full auto code signing (cert + profile)
+      - name: Create provisioning profile via App Store Connect API
         script: |
-          set -e
-          echo "=== Auto code signing for $BUNDLE_ID ==="
-
-          # Write API key
-          AUTH_KEY=$(mktemp)
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > "$AUTH_KEY"
+          echo "=== Creating distribution provisioning profile ==="
+          API_KEY_FILE=$(mktemp)
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > "$API_KEY_FILE"
 
           # Generate JWT
-          jwt() {
-            HEADER=$(echo -n '{"alg":"ES256","kid":"'$APP_STORE_CONNECT_KEY_ID'","typ":"JWT"}' | base64 | tr -d '=' | tr '/+' '_-')
-            PAYLOAD=$(echo -n '{"iss":"'$APP_STORE_CONNECT_ISSUER_ID'","iat":'$(date +%s)',"exp":'$(($(date +%s)+600))',"aud":"appstoreconnect-v1"}' | base64 | tr -d '=' | tr '/+' '_-')
-            SIG=$(echo -n "$HEADER.$PAYLOAD" | openssl dgst -sha256 -sign "$AUTH_KEY" | base64 | tr -d '=' | tr '/+' '_-')
-            echo "$HEADER.$PAYLOAD.$SIG"
-          }
+          HEADER=$(echo -n '{"alg":"ES256","kid":"'$APP_STORE_CONNECT_KEY_ID'","typ":"JWT"}' | base64 | tr -d '=' | tr '/+' '_-')
+          NOW=$(date +%s)
+          PAYLOAD=$(echo -n '{"iss":"'$APP_STORE_CONNECT_ISSUER_ID'","iat":'$NOW',"exp":'$((NOW+600))',"aud":"appstoreconnect-v1"}' | base64 | tr -d '=' | tr '/+' '_-')
+          SIGNING_INPUT="$HEADER.$PAYLOAD"
+          SIGNATURE=$(echo -n "$SIGNING_INPUT" | openssl dgst -sha256 -sign "$API_KEY_FILE" | base64 | tr -d '=' | tr '/+' '_-')
+          JWT="$SIGNING_INPUT.$SIGNATURE"
 
-          JWT=$(jwt)
+          # Find bundle ID
+          BUNDLE_RESP=$(curl -s -H "Authorization: Bearer $JWT" "https://api.appstoreconnect.apple.com/v1/bundleIds?filter[identifier]=com.tutormeter.app")
+          BUNDLE_ID=$(echo "$BUNDLE_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null)
+          echo "Bundle ID: ${BUNDLE_ID:-NOT FOUND}"
 
-          # Step 1: Find or create distribution certificate
-          echo "--- Step 1: Distribution Certificate ---"
-          CERTS=$(curl -s -H "Authorization: Bearer $JWT" \
-            "https://api.appstoreconnect.apple.com/v1/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=1")
-          CERT_ID=$(echo "$CERTS" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data'][0]['id'] if d.get('data') else '')")
+          # Find distribution certificate
+          CERT_RESP=$(curl -s -H "Authorization: Bearer $JWT" "https://api.appstoreconnect.apple.com/v1/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=1")
+          CERT_ID=$(echo "$CERT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null)
+          echo "Certificate: ${CERT_ID:-NOT FOUND}"
 
-          if [ -z "$CERT_ID" ]; then
-            echo "No distribution certificate found. Creating one..."
-            mkdir -p ~/signing
-            openssl genrsa -out ~/signing/dist_key.pem 2048
-            openssl req -new -key ~/signing/dist_key.pem -out ~/signing/cert.csr \
-              -subj "/CN=Tutormeter CI/emailAddress=blasi.gianmarco98@gmail.com"
-
-            CSR_CONTENT=$(cat ~/signing/cert.csr | base64)
-            CERT_RESP=$(curl -s -X POST "https://api.appstoreconnect.apple.com/v1/certificates" \
-              -H "Authorization: Bearer $JWT" \
-              -H "Content-Type: application/json" \
-              -d "{\"data\":{\"type\":\"certificates\",\"attributes\":{\"certificateType\":\"IOS_DISTRIBUTION\",\"csrContent\":\"$CSR_CONTENT\"}}}")
-            CERT_ID=$(echo "$CERT_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('data',{}).get('id',''))")
-
-            if [ -n "$CERT_ID" ]; then
-              CERT_CONTENT=$(echo "$CERT_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data']['attributes']['certificateContent'])")
-              echo "$CERT_CONTENT" | base64 -d > ~/signing/dist_cert.cer
-              echo "Certificate created: $CERT_ID"
+          if [ -n "$BUNDLE_ID" ] && [ -n "$CERT_ID" ]; then
+            # Check if profile already exists
+            PROF_RESP=$(curl -s -H "Authorization: Bearer $JWT" "https://api.appstoreconnect.apple.com/v1/profiles?filter[name]=Tutormeter%20App%20Store&filter[profileType]=IOS_APP_STORE")
+            PROF_ID=$(echo "$PROF_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null)
+            if [ -n "$PROF_ID" ]; then
+              echo "Profile already exists: $PROF_ID"
+            else
+              echo "Creating new profile..."
+              curl -s -X POST "https://api.appstoreconnect.apple.com/v1/profiles" \
+                -H "Authorization: Bearer $JWT" \
+                -H "Content-Type: application/json" \
+                -d "{\"data\":{\"type\":\"profiles\",\"attributes\":{\"name\":\"Tutormeter App Store\",\"profileType\":\"IOS_APP_STORE\"},\"relationships\":{\"bundleId\":{\"data\":{\"type\":\"bundleIds\",\"id\":\"$BUNDLE_ID\"}},\"certificates\":{\"data\":[{\"type\":\"certificates\",\"id\":\"$CERT_ID\"}]}}}}"
+              echo "Profile created."
             fi
           else
-            echo "Using existing certificate: $CERT_ID"
-            # Need to generate key anyway for signing
-            mkdir -p ~/signing
-            openssl genrsa -out ~/signing/dist_key.pem 2048 2>/dev/null || true
+            echo "ERROR: Missing bundle ID or distribution certificate."
+            echo "You need to create these on developer.apple.com first."
           fi
-
-          # Step 2: Create provisioning profile
-          echo "--- Step 2: Provisioning Profile ---"
-          BUNDLE_RESP=$(curl -s -H "Authorization: Bearer $JWT" \
-            "https://api.appstoreconnect.apple.com/v1/bundleIds?filter[identifier]=$BUNDLE_ID")
-          BUNDLE_ID=$(echo "$BUNDLE_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data'][0]['id'] if d.get('data') else '')")
-
-          # Check existing profile
-          PROF_RESP=$(curl -s -H "Authorization: Bearer $JWT" \
-            "https://api.appstoreconnect.apple.com/v1/profiles?filter[name]=Tutormeter%20CI&filter[profileType]=IOS_APP_STORE")
-          PROF_ID=$(echo "$PROF_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data'][0]['id'] if d.get('data') else '')")
-
-          if [ -z "$PROF_ID" ] && [ -n "$BUNDLE_ID" ] && [ -n "$CERT_ID" ]; then
-            JWT=$(jwt)
-            PROF_RESP=$(curl -s -X POST "https://api.appstoreconnect.apple.com/v1/profiles" \
-              -H "Authorization: Bearer $JWT" \
-              -H "Content-Type: application/json" \
-              -d "{\"data\":{\"type\":\"profiles\",\"attributes\":{\"name\":\"Tutormeter CI\",\"profileType\":\"IOS_APP_STORE\"},\"relationships\":{\"bundleId\":{\"data\":{\"type\":\"bundleIds\",\"id\":\"$BUNDLE_ID\"}},\"certificates\":{\"data\":[{\"type\":\"certificates\",\"id\":\"$CERT_ID\"}]}}}}")
-            PROF_ID=$(echo "$PROF_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('data',{}).get('id',''))")
-            echo "Profile created: $PROF_ID"
-          fi
-
-          # Step 3: Download and install profile locally
-          if [ -n "$PROF_ID" ]; then
-            echo "--- Step 3: Download & Install Profile ---"
-            JWT=$(jwt)
-            PROF_DETAIL=$(curl -s -H "Authorization: Bearer $JWT" \
-              "https://api.appstoreconnect.apple.com/v1/profiles/$PROF_ID")
-            PROF_CONTENT=$(echo "$PROF_DETAIL" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data']['attributes']['profileContent'])")
-            PROF_UUID=$(echo "$PROF_DETAIL" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data']['attributes']['uuid'])")
-            mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-            echo "$PROF_CONTENT" | base64 -d > "$HOME/Library/MobileDevice/Provisioning Profiles/$PROF_UUID.mobileprovision"
-            echo "Profile installed: $PROF_UUID"
-
-            # Import certificate into keychain
-            if [ -f ~/signing/dist_cert.cer ] && [ -f ~/signing/dist_key.pem ]; then
-              echo "--- Step 4: Import Certificate ---"
-              security create-keychain -p "" build.keychain 2>/dev/null || true
-              security default-keychain -s build.keychain 2>/dev/null || true
-              security unlock-keychain -p "" build.keychain 2>/dev/null || true
-              security import ~/signing/dist_cert.cer -k build.keychain -T /usr/bin/codesign 2>/dev/null || true
-              security import ~/signing/dist_key.pem -k build.keychain -T /usr/bin/codesign 2>/dev/null || true
-              security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain 2>/dev/null || true
-              echo "Certificate imported."
-            fi
-          fi
-
-          rm -f "$AUTH_KEY"
-          echo "=== Signing setup complete ==="
-
+          rm -f "$API_KEY_FILE"
       - name: Build and sign archive
         script: |
           xcodebuild archive \
@@ -205,7 +150,8 @@ workflows:
             -allowProvisioningUpdates \
             -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
             -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
-            -authenticationKeyPath <(echo "$APP_STORE_CONNECT_PRIVATE_KEY")
+            -authenticationKeyPath <(echo "$APP_STORE_CONNECT_PRIVATE_KEY") \
+            CODE_SIGN_STYLE=Automatic
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
