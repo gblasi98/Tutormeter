@@ -101,6 +101,8 @@ workflows:
       - name: Set up iOS code signing via App Store Connect
         script: |
           xcode-project use-ios-signing
+          echo "=== Signing Settings ==="
+          xcodebuild -project $XCODE_PROJECT -scheme $XCODE_SCHEME -showBuildSettings 2>/dev/null | grep -E "DEVELOPMENT_TEAM|CODE_SIGN|PROVISIONING_PROFILE|PRODUCT_BUNDLE"
       - name: Build and sign archive
         script: |
           xcodebuild archive \
