@@ -27,6 +27,10 @@ targets:
       - path: Velox
         type: group
     resources:
+      - path: Velox/App/Assets.xcassets
+        type: group
+      - path: Velox/App/LaunchScreen.storyboard
+        type: file
       - path: Resources
         type: group
     settings:
