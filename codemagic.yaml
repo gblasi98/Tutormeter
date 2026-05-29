@@ -96,77 +96,20 @@ workflows:
              CODE_SIGN_IDENTITY="" \
              CODE_SIGNING_REQUIRED=NO \
              CODE_SIGNING_ALLOWED=NO
-      - name: Create provisioning profile (Ruby + App Store Connect API)
+      - name: Create provisioning profile (Fastlane sigh)
         script: |
-          gem install jwt -q --no-document 2>/dev/null
-          ruby -r jwt -r json -r net/http -r openssl -e '
-          BUNDLE = "com.tutormeter.app"
-          KEY_ID = ENV["APP_STORE_CONNECT_KEY_ID"]
-          ISSUER = ENV["APP_STORE_CONNECT_ISSUER_ID"]
-          KEY = ENV["APP_STORE_CONNECT_PRIVATE_KEY"]
-
-          def jwt
-            payload = { iss: ISSUER, iat: Time.now.to_i, exp: Time.now.to_i + 600, aud: "appstoreconnect-v1" }
-            headers = { kid: KEY_ID, typ: "JWT" }
-            private_key = OpenSSL::PKey::EC.new(KEY)
-            JWT.encode(payload, private_key, "ES256", headers)
-          end
-
-          def api(path, method=:Get, body=nil)
-            uri = URI("https://api.appstoreconnect.apple.com/v1#{path}")
-            http = Net::HTTP.new(uri.host, uri.port)
-            http.use_ssl = true
-            req = case method
-                  when :Get then Net::HTTP::Get.new(uri)
-                  when :Post then Net::HTTP::Post.new(uri)
-                  end
-            req["Authorization"] = "Bearer #{jwt}"
-            req["Content-Type"] = "application/json"
-            req.body = body.to_json if body
-            JSON.parse(http.request(req).body)
-          end
-
-          # Get bundle ID
-          r = api("/bundleIds?filter[identifier]=#{BUNDLE}")
-          bid = r.dig("data", 0, "id")
-          puts "Bundle: #{bid || "NOT FOUND"}"
-
-          # Get distribution cert
-          r = api("/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=1")
-          cid = r.dig("data", 0, "id")
-          puts "Cert: #{cid || "NOT FOUND"}"
-
-          # Check/create profile
-          r = api("/profiles?filter[name]=Tutormeter%20CI&filter[profileType]=IOS_APP_STORE")
-          pid = r.dig("data", 0, "id")
-
-          if pid
-            puts "Profile exists: #{pid}"
-          elsif bid && cid
-            body = { data: { type: "profiles", attributes: { name: "Tutormeter CI", profileType: "IOS_APP_STORE" },
-              relationships: { bundleId: { data: { type: "bundleIds", id: bid } },
-                               certificates: { data: [{ type: "certificates", id: cid }] } } } }
-            r = api("/profiles", :Post, body)
-            pid = r.dig("data", "id")
-            puts "Profile: #{pid || "FAILED"}"
-            if r["errors"]
-              r["errors"].each { |e| puts "  #{e["title"]}: #{e["detail"]}" }
-            end
-          end
-
-          # Download and install
-          if pid
-            r = api("/profiles/#{pid}")
-            pc = r.dig("data", "attributes", "profileContent")
-            pu = r.dig("data", "attributes", "uuid")
-            if pc && pu
-              dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
-              Dir.mkdir(dir) unless Dir.exist?(dir)
-              File.write("#{dir}/#{pu}.mobileprovision", Base64.decode64(pc))
-              puts "Profile installed: #{pu}"
-            end
-          end
-          '
+          gem install fastlane -q --no-document 2>/dev/null || true
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/apikey.p8
+          fastlane sigh --app_identifier com.tutormeter.app \
+            --username gblasi98 \
+            --team_id RW4U7HX5AH \
+            --provisioning_name "Tutormeter CI" \
+            --ignore_profiles_with_different_name \
+            --filename "Tutormeter.mobileprovision" \
+            --api_key_path /tmp/apikey.p8 \
+            --api_key_issuer $APP_STORE_CONNECT_ISSUER_ID \
+            --api_key $APP_STORE_CONNECT_KEY_ID \
+            --force
       - name: Build unsigned archive
         script: |
           xcodebuild archive \
