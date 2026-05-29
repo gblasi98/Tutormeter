@@ -57,8 +57,8 @@ workflows:
   # ──────────────────────────────────────────
   # TestFlight Release (on tag 'release/*')
   # ──────────────────────────────────────────
-  ios-release:
-    name: iOS App Store Release
+  ios-testflight:
+    name: iOS TestFlight Release
     instance_type: mac_mini_m2
     max_build_duration: 90
     environment:
