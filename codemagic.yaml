@@ -23,12 +23,21 @@ workflows:
         script: brew install xcodegen
       - name: Generate Xcode project
         script: xcodegen generate --spec project.yml
-      - name: Inject Info.plist validation keys
+      - name: Inject Info.plist validation keys (no storyboard, no asset catalog)
         script: |
           PLIST="Velox/App/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIconName AppIcon" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :UILaunchStoryboardName string LaunchScreen" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :UILaunchStoryboardName LaunchScreen" "$PLIST"
-          echo "Patched Info.plist"
+          # UILaunchScreen dictionary (iOS 14+ - no storyboard needed)
+          /usr/libexec/PlistBuddy -c "Add :UILaunchScreen dict" "$PLIST" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Add :UILaunchScreen:UIColorName string LaunchScreenColor" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :UILaunchScreen:UIColorName LaunchScreenColor" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :UILaunchStoryboardName" "$PLIST" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$PLIST" 2>/dev/null
+          # Old-school CFBundleIcons with direct PNG files
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$PLIST" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$PLIST" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array" "$PLIST" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string Icon-60@2x.png" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 Icon-60@2x.png" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName AppIcon" "$PLIST"
+          echo "Info.plist patched for old-school icons + UILaunchScreen"
       - name: Run unit tests
         script: |
           xcodebuild test -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
@@ -93,22 +102,6 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="iPhone Distribution: GIANMARCO BLASI (RW4U7HX5AH)" \
              PROVISIONING_PROFILE_SPECIFIER="d0215d26-1fda-4901-8a6f-7b1924fb10fd"
-      - name: Inject compiled resources (icons + storyboard)
-        script: |
-          APP="build/ios/archive/Tutormeter.xcarchive/Products/Applications/Tutormeter.app"
-          echo "=== Compiling asset catalog ==="
-          /usr/bin/actool Velox/App/Assets.xcassets --compile "$APP" \
-            --platform iphoneos --minimum-deployment-target 17.0 \
-            --app-icon AppIcon --output-partial-info-plist /tmp/partial.plist 2>&1 || echo "actool failed"
-          echo "=== Compiling storyboard ==="
-          /usr/bin/ibtool --compile "$APP/LaunchScreen.storyboardc" \
-            Velox/App/LaunchScreen.storyboard 2>&1 || echo "ibtool failed"
-          echo "=== Checking results ==="
-          ls -la "$APP/Assets.car" 2>/dev/null || echo "No Assets.car"
-          ls -la "$APP/LaunchScreen.storyboardc" 2>/dev/null || echo "No storyboardc"
-          echo "=== Re-signing modified app ==="
-          codesign -f -s "iPhone Distribution: GIANMARCO BLASI (RW4U7HX5AH)" \
-            --keychain build.keychain "$APP" 2>&1 || echo "Re-sign failed"
       - name: Create export plist
         script: |
           cat > /tmp/export.plist << 'PLIST'
@@ -132,22 +125,6 @@ workflows:
             -exportPath build/ios/ipa \
             -exportOptionsPlist /tmp/export.plist
            find build/ios/ipa -name "*.ipa" -exec ls -la {} \;
-      - name: Verify IPA contents
-        script: |
-          echo "=== Inspecting built app ==="
-          APP=$(find build/ios/archive/Tutormeter.xcarchive -name "*.app" -type d | head -1)
-          echo "App bundle: $APP"
-          echo "--- Info.plist keys ---"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$APP/Info.plist" 2>/dev/null || echo "CFBundleIconName NOT FOUND"
-          /usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$APP/Info.plist" 2>/dev/null || echo "UILaunchStoryboardName NOT FOUND"
-          echo "--- Icons ---"
-          ls -la "$APP/"*.png 2>/dev/null || echo "No PNG icons in app root"
-          ls -la "$APP/Assets.car" 2>/dev/null || echo "No Assets.car"
-          ls -la "$APP/AppIcon"* 2>/dev/null || echo "No AppIcon files"
-          echo "--- Storyboards ---"
-          ls -la "$APP/"*.storyboardc 2>/dev/null || echo "No compiled storyboards"
-          echo "--- All files in app ---"
-          ls -laR "$APP" | head -40
       - name: Upload to TestFlight
         script: |
           echo "=== Decode + convert API key DER→PEM ==="
