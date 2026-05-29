@@ -72,8 +72,11 @@ targets:
           - gps
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        CFBundleIconName: AppIcon
+        UILaunchStoryboardName: LaunchScreen
         UIBackgroundModes:
           - location
           - audio
