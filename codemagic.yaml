@@ -62,7 +62,7 @@ workflows:
             echo "=== Create p12 from cert + key ==="
             printenv CM_DIST_CERT | base64 --decode > /tmp/cert.cer 2>/dev/null
             printenv CM_DIST_CERT | base64 -D > /tmp/cert.cer 2>/dev/null || true
-            openssl pkcs12 -export -out /tmp/proper.p12 -inkey /tmp/key.pem -in /tmp/cert.cer -passout pass:Tutormeter2026!
+            openssl pkcs12 -export -out /tmp/proper.p12 -inkey /tmp/key.pem -in /tmp/cert.cer -password pass:Tutormeter2026!
             ls -la /tmp/proper.p12
             echo "=== Import into keychain ==="
             security import /tmp/proper.p12 -k build.keychain -P Tutormeter2026! -A -T /usr/bin/codesign
