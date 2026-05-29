@@ -143,7 +143,9 @@ workflows:
           if pid
             puts "Profile exists: #{pid}"
           elsif bid && cid
-            body = { data: { type: "profiles", attributes: { name: "Tutormeter CI", profileType: "IOS_APP_STORE" },
+            body = { data: { type: "profiles", attributes: { 
+              name: "Tutormeter CI", profileType: "IOS_APP_STORE",
+              capabilities: ["PUSH_NOTIFICATIONS","SIRI","BACKGROUND_MODES"] },
               relationships: { bundleId: { data: { type: "bundleIds", id: bid } },
                                certificates: { data: [{ type: "certificates", id: cid }] } } } }
             r = api("/profiles", :Post, body)
