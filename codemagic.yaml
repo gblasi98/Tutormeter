@@ -98,11 +98,21 @@ workflows:
             CODE_SIGN_IDENTITY="" \
              CODE_SIGNING_REQUIRED=NO \
              CODE_SIGNING_ALLOWED=NO
-      - name: Install provisioning profile
+      - name: Install provisioning profile (Python)
         script: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$CM_PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/Tutormeter.mobileprovision 2>/dev/null || echo "$CM_PROVISIONING_PROFILE" | base64 -D > ~/Library/MobileDevice/Provisioning\ Profiles/Tutormeter.mobileprovision
-          echo "Profile installed: $(ls ~/Library/MobileDevice/Provisioning\ Profiles/)"
+          python3 -c "
+          import os, base64
+          b64 = os.environ.get('CM_PROVISIONING_PROFILE', '')
+          if b64:
+              data = base64.b64decode(b64)
+              path = os.path.expanduser('~/Library/MobileDevice/Provisioning Profiles/d0215d26-1fda-4901-8a6f-7b1924fb10fd.mobileprovision')
+              os.makedirs(os.path.dirname(path), exist_ok=True)
+              with open(path, 'wb') as f:
+                  f.write(data)
+              print(f'Profile written: {len(data)} bytes to {path}')
+          else:
+              print('CM_PROVISIONING_PROFILE not set')
+          "
       - name: Write App Store Connect API key
         script: |
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
