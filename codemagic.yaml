@@ -87,16 +87,28 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="iPhone Distribution: GIANMARCO BLASI (RW4U7HX5AH)" \
              PROVISIONING_PROFILE_SPECIFIER="d0215d26-1fda-4901-8a6f-7b1924fb10fd"
+      - name: Create export plist
+        script: |
+          cat > /tmp/export.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key><string>app-store</string>
+              <key>teamID</key><string>RW4U7HX5AH</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.tutormeter.app</key><string>d0215d26-1fda-4901-8a6f-7b1924fb10fd</string>
+              </dict>
+          </dict>
+          </plist>
+          PLIST
       - name: Export IPA
         script: |
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Tutormeter.xcarchive \
             -exportPath build/ios/ipa \
-            -allowProvisioningUpdates \
-            -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
-            -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
-            -authenticationKeyPath /tmp/authkey.p8
+            -exportOptionsPlist /tmp/export.plist
           find build/ios/ipa -name "*.ipa" -exec ls -la {} \;
       - name: Upload to TestFlight
         script: |
