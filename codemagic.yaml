@@ -34,7 +34,8 @@ workflows:
           echo "Patched: UILaunchScreen + CFBundleIconName=AppIcon"
       - name: Run unit tests
         script: |
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 --decode > /tmp/key.der 2>/dev/null || printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 -D > /tmp/key.der
+          openssl pkey -in /tmp/key.der -inform DER -out /tmp/authkey.p8 2>/dev/null || printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
           SIM=$(xcodebuild -project $XCODE_PROJECT -scheme $XCODE_SCHEME -showdestinations 2>/dev/null | grep "iPhone" | head -1 | sed 's/.*id:\([^ ,]*\).*/id=\1/')
           if [ -z "$SIM" ]; then SIM="id=51823430-5D05-4B92-ACC0-759B5C3C4745"; fi
           echo "Using simulator: $SIM"
