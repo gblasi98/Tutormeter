@@ -96,9 +96,74 @@ workflows:
             -scheme $XCODE_SCHEME \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -resultBundlePath TestResults.xcresult \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+             CODE_SIGN_IDENTITY="" \
+             CODE_SIGNING_REQUIRED=NO \
+             CODE_SIGNING_ALLOWED=NO
+      - name: Ensure provisioning profile exists
+        script: |
+          python3 -c "
+          import os,json,time,base64,subprocess,sys
+          key_id=os.environ['APP_STORE_CONNECT_KEY_ID']
+          issuer=os.environ['APP_STORE_CONNECT_ISSUER_ID']
+          key=os.environ['APP_STORE_CONNECT_PRIVATE_KEY']
+          bundle='com.tutormeter.app'
+
+          # Write key to temp file
+          kf='/tmp/apikey.p8'
+          with open(kf,'w') as f: f.write(key)
+
+          def jwt():
+              h=base64.urlsafe_b64encode(json.dumps({'alg':'ES256','kid':key_id,'typ':'JWT'}).encode()).decode().rstrip('=')
+              p=base64.urlsafe_b64encode(json.dumps({'iss':issuer,'iat':int(time.time()),'exp':int(time.time())+600,'aud':'appstoreconnect-v1'}).encode()).decode().rstrip('=')
+              si=f'{h}.{p}'
+              r=subprocess.run(['openssl','dgst','-sha256','-sign',kf],input=si.encode(),capture_output=True)
+              s=base64.urlsafe_b64encode(r.stdout).decode().rstrip('=')
+              return f'{si}.{s}'
+
+          def api(path,method='GET',data=None):
+              t=jwt()
+              c=['curl','-s','-H',f'Authorization: Bearer {t}']
+              if data: c+=['-X',method,'-H','Content-Type: application/json','-d',json.dumps(data)]
+              c.append(f'https://api.appstoreconnect.apple.com/v1{path}')
+              r=subprocess.run(c,capture_output=True,text=True)
+              return json.loads(r.stdout) if r.stdout else {}
+
+          # Get bundle ID
+          r=api(f'/bundleIds?filter[identifier]={bundle}')
+          bid=r.get('data',[{}])[0].get('id') if r.get('data') else None
+          if not bid:
+              print(f'ERROR: Bundle ID {bundle} not found in App Store Connect')
+              sys.exit(0)  # Don't fail the build - let signing handle it
+
+          # Get distribution cert
+          r=api('/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=1')
+          cid=r.get('data',[{}])[0].get('id') if r.get('data') else None
+
+          # Check/create profile
+          r=api(f'/profiles?filter[name]=Tutormeter%20CI&filter[profileType]=IOS_APP_STORE')
+          pid=r.get('data',[{}])[0].get('id') if r.get('data') else None
+
+          if pid:
+              print(f'Profile exists: {pid}')
+          elif bid and cid:
+              r=api('/profiles','POST',{'data':{'type':'profiles','attributes':{'name':'Tutormeter CI','profileType':'IOS_APP_STORE'},'relationships':{'bundleId':{'data':{'type':'bundleIds','id':bid}},'certificates':{'data':[{'type':'certificates','id':cid}]}}}})
+              pid=r.get('data',{}).get('id')
+              print(f'Profile created: {pid or \"FAILED\"}')
+          else:
+              print(f'Cannot create profile: bid={bid}, cid={cid}')
+
+          # Download and install
+          if pid:
+              r=api(f'/profiles/{pid}')
+              pc=r.get('data',{}).get('attributes',{}).get('profileContent')
+              pu=r.get('data',{}).get('attributes',{}).get('uuid')
+              if pc and pu:
+                  os.makedirs(os.path.expanduser('~/Library/MobileDevice/Provisioning Profiles'),exist_ok=True)
+                  with open(os.path.expanduser(f'~/Library/MobileDevice/Provisioning Profiles/{pu}.mobileprovision'),'wb') as f:
+                      f.write(base64.b64decode(pc))
+                  print(f'Profile installed: {pu}')
+          os.unlink(kf)
+          "
       - name: Set up code signing
         script: |
           xcode-project use-ios-signing
