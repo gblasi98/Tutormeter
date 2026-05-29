@@ -120,8 +120,8 @@ struct TutormeterAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StartTrackingIntent(),
             phrases: [
-                "Start Tutormeter tracking",
-                "Avvia monitoraggio Tutormeter",
+                "Start Tutormeter tracking with \(.applicationName)",
+                "Avvia monitoraggio Tutormeter con \(.applicationName)",
                 "Avvia monitoraggio Tutor con \(.applicationName)",
                 "Start speed monitoring with \(.applicationName)"
             ],
@@ -132,8 +132,8 @@ struct TutormeterAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StopTrackingIntent(),
             phrases: [
-                "Stop Tutormeter tracking",
-                "Ferma monitoraggio Tutormeter",
+                "Stop Tutormeter tracking with \(.applicationName)",
+                "Ferma monitoraggio Tutormeter con \(.applicationName)",
                 "Stop speed monitoring with \(.applicationName)"
             ],
             shortTitle: "Ferma Monitoraggio",
@@ -143,10 +143,10 @@ struct TutormeterAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: GetTutormeterStatusIntent(),
             phrases: [
-                "What's my Tutormeter speed",
-                "Qual è la mia velocità media",
-                "Tutormeter status",
-                "Stato Tutormeter"
+                "What's my Tutormeter speed with \(.applicationName)",
+                "Qual è la mia velocità media con \(.applicationName)",
+                "Tutormeter status with \(.applicationName)",
+                "Stato Tutormeter con \(.applicationName)"
             ],
             shortTitle: "Stato Tutormeter",
             systemImageName: "info.circle"
