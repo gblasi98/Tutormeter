@@ -39,8 +39,7 @@ workflows:
           echo "Using simulator: $SIM"
           xcodebuild test -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
             -destination "$SIM" \
-            -resultBundlePath TestResults.xcresult \
-            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO
+            -resultBundlePath TestResults.xcresult
       - name: Set up signing (keychain + cert + profile)
         script: |
           echo "=== Keychain setup ==="
