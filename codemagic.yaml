@@ -98,6 +98,12 @@ workflows:
             CODE_SIGN_IDENTITY="" \
              CODE_SIGNING_REQUIRED=NO \
              CODE_SIGNING_ALLOWED=NO
+      - name: Diagnostic - check what xcodebuild sees
+        script: |
+          echo "=== Xcode version ===" && xcodebuild -version
+          echo "=== Project settings ===" && xcodebuild -project $XCODE_PROJECT -scheme $XCODE_SCHEME -showBuildSettings 2>/dev/null | grep -iE "PROVISIONING|SIGNING|BUNDLE|TEAM" | head -20 || true
+          echo "=== Available profiles ===" && ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "No profiles dir"
+          echo "=== Profile details ===" && for f in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do echo "--- $f ---"; /usr/libexec/PlistBuddy -c Print "$f" 2>/dev/null | grep -A1 -E "application-identifier|Name|UUID|ExpirationDate|Platform" || true; done
       - name: Build unsigned archive
         script: |
           xcodebuild archive \
