@@ -107,28 +107,10 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM=RW4U7HX5AH
+             DEVELOPMENT_TEAM=RW4U7HX5AH
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
-    publishing:
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_ID
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
-        beta_groups:
-          - Tutormeter Internal Testers
-        submit_to_app_store: false
-        # App Store compliance:
-        # - Encryption: No (no network transmission)
-        # - IDFA: No (no ads or tracking)
-      email:
-        recipients:
-          - CHANGE_ME@example.com  # ← Replace with your email
-        notify:
-          success: true
-          failure: true
 
   # ──────────────────────────────────────────
   # Pull Request Validation (PR checks only)
