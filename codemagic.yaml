@@ -109,9 +109,6 @@ workflows:
       groups:
         - appstore
       xcode: "16.0"
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.tutormeter.app
       vars:
         XCODE_PROJECT: Tutormeter.xcodeproj
         XCODE_SCHEME: Tutormeter
