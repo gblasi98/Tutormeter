@@ -115,7 +115,23 @@ workflows:
             -archivePath build/ios/archive/Tutormeter.xcarchive \
             -exportPath build/ios/ipa \
             -exportOptionsPlist /tmp/export.plist
-          find build/ios/ipa -name "*.ipa" -exec ls -la {} \;
+           find build/ios/ipa -name "*.ipa" -exec ls -la {} \;
+      - name: Verify IPA contents
+        script: |
+          echo "=== Inspecting built app ==="
+          APP=$(find build/ios/archive/Tutormeter.xcarchive -name "*.app" -type d | head -1)
+          echo "App bundle: $APP"
+          echo "--- Info.plist keys ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$APP/Info.plist" 2>/dev/null || echo "CFBundleIconName NOT FOUND"
+          /usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$APP/Info.plist" 2>/dev/null || echo "UILaunchStoryboardName NOT FOUND"
+          echo "--- Icons ---"
+          ls -la "$APP/"*.png 2>/dev/null || echo "No PNG icons in app root"
+          ls -la "$APP/Assets.car" 2>/dev/null || echo "No Assets.car"
+          ls -la "$APP/AppIcon"* 2>/dev/null || echo "No AppIcon files"
+          echo "--- Storyboards ---"
+          ls -la "$APP/"*.storyboardc 2>/dev/null || echo "No compiled storyboards"
+          echo "--- All files in app ---"
+          ls -laR "$APP" | head -40
       - name: Upload to TestFlight
         script: |
           echo "=== Decode + convert API key DER→PEM ==="
