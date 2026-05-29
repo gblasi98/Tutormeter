@@ -96,8 +96,13 @@ workflows:
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+             CODE_SIGNING_REQUIRED=NO \
+             CODE_SIGNING_ALLOWED=NO
+      - name: Install provisioning profile
+        script: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$CM_PROVISIONING_PROFILE" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/Tutormeter.mobileprovision
+          echo "Profile installed: $(ls ~/Library/MobileDevice/Provisioning\ Profiles/)"
       - name: Write App Store Connect API key
         script: |
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
