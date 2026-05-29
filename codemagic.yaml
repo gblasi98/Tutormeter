@@ -143,14 +143,15 @@ workflows:
           if pid
             puts "Profile exists: #{pid}"
           elsif bid && cid
-            body = { data: { type: "profiles", attributes: { 
-              name: "Tutormeter CI", profileType: "IOS_APP_STORE",
-              capabilities: ["PUSH_NOTIFICATIONS","SIRI","BACKGROUND_MODES"] },
+            body = { data: { type: "profiles", attributes: { name: "Tutormeter CI", profileType: "IOS_APP_STORE" },
               relationships: { bundleId: { data: { type: "bundleIds", id: bid } },
                                certificates: { data: [{ type: "certificates", id: cid }] } } } }
             r = api("/profiles", :Post, body)
             pid = r.dig("data", "id")
-            puts "Profile created: #{pid || "FAILED: #{r["errors"]&.inspect}"}"
+            puts "Profile: #{pid || "FAILED"}"
+            if r["errors"]
+              r["errors"].each { |e| puts "  #{e["title"]}: #{e["detail"]}" }
+            end
           end
 
           # Download and install
