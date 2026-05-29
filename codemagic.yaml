@@ -11,6 +11,8 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
+      groups:
+        - appstore
       xcode: "16.0"
       vars:
         XCODE_PROJECT: Tutormeter.xcodeproj
@@ -30,6 +32,22 @@ workflows:
       - name: Generate Xcode project
         script: |
           xcodegen generate --spec project.yml
+      - name: Ensure provisioning profile exists
+        script: |
+          echo "=== Creating provisioning profile ==="
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/apikey.p8
+          gem install fastlane -q --no-document 2>/dev/null || true
+          fastlane sigh \
+            --app_identifier com.tutormeter.app \
+            --team_id RW4U7HX5AH \
+            --provisioning_name "Tutormeter CI" \
+            --api_key_path /tmp/apikey.p8 \
+            --api_key_issuer $APP_STORE_CONNECT_ISSUER_ID \
+            --api_key $APP_STORE_CONNECT_KEY_ID \
+            --force \
+            --skip_fetch_profiles \
+            --skip_certificate_verification 2>&1 || true
+          echo "=== Profile creation attempted ==="
       - name: Run unit tests
         script: |
           xcodebuild test \
