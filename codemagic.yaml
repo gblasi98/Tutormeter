@@ -66,9 +66,6 @@ workflows:
         - appstore
         - ios_signing
       xcode: "16.0"
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.tutormeter.app
       vars:
         XCODE_PROJECT: Tutormeter.xcodeproj
         XCODE_SCHEME: Tutormeter
@@ -164,15 +161,17 @@ workflows:
                   print(f'Profile installed: {pu}')
           os.unlink(kf)
           "
-      - name: Set up code signing
+      - name: Build and sign archive (App Store API key)
         script: |
-          xcode-project use-ios-signing
-      - name: Build and sign archive
-        script: |
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
           xcodebuild archive \
             -project $XCODE_PROJECT \
             -scheme $XCODE_SCHEME \
-            -archivePath build/ios/archive/Tutormeter.xcarchive
+            -archivePath build/ios/archive/Tutormeter.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
+            -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
+            -authenticationKeyPath /tmp/authkey.p8
     artifacts:
       - build/ios/archive/Tutormeter.xcarchive
       - TestResults.xcresult
