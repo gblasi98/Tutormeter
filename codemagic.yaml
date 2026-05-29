@@ -14,7 +14,7 @@ workflows:
       groups:
         - appstore
         - ios_signing
-      xcode: "latest"
+      xcode: "16.0"
       vars:
         XCODE_PROJECT: Tutormeter.xcodeproj
         XCODE_SCHEME: Tutormeter
@@ -34,13 +34,10 @@ workflows:
           echo "Patched: UILaunchScreen + CFBundleIconName=AppIcon"
       - name: Run unit tests
         script: |
-          SIM=$(xcodebuild -project $XCODE_PROJECT -scheme $XCODE_SCHEME -showdestinations 2>/dev/null | grep "iPhone" | head -1 | sed 's/.*id:\([^ ,]*\).*/id=\1/')
-          if [ -z "$SIM" ]; then SIM="id=51823430-5D05-4B92-ACC0-759B5C3C4745"; fi
-          echo "Using simulator: $SIM"
           xcodebuild test -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
-            -destination "$SIM" \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -resultBundlePath TestResults.xcresult \
-            DEVELOPMENT_TEAM=RW4U7HX5AH
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
       - name: Set up signing (keychain + cert + profile)
         script: |
           echo "=== Keychain setup ==="
