@@ -14,7 +14,7 @@ workflows:
       groups:
         - appstore
         - ios_signing
-      xcode: "latest"
+      xcode: "16.0"
       vars:
         XCODE_PROJECT: Tutormeter.xcodeproj
         XCODE_SCHEME: Tutormeter
@@ -35,7 +35,7 @@ workflows:
       - name: Run unit tests
         script: |
           xcodebuild test -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
-            -destination 'platform=iOS Simulator' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
       - name: Set up signing (keychain + cert + profile)
