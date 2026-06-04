@@ -34,19 +34,10 @@ workflows:
           echo "Patched: UILaunchScreen + CFBundleIconName=AppIcon"
       - name: Run unit tests
         script: |
-          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 --decode > /tmp/key.der 2>/dev/null || printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 -D > /tmp/key.der
-          openssl pkey -in /tmp/key.der -inform DER -out /tmp/authkey.p8 2>/dev/null || printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/authkey.p8
-          SIM=$(xcodebuild -project $XCODE_PROJECT -scheme $XCODE_SCHEME -showdestinations 2>/dev/null | grep "iPhone" | head -1 | sed 's/.*id:\([^ ,]*\).*/id=\1/')
-          if [ -z "$SIM" ]; then SIM="id=51823430-5D05-4B92-ACC0-759B5C3C4745"; fi
-          echo "Using simulator: $SIM"
           xcodebuild test -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
-            -destination "$SIM" \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
             -resultBundlePath TestResults.xcresult \
-            -allowProvisioningUpdates \
-            -authenticationKeyIssuerID $APP_STORE_CONNECT_ISSUER_ID \
-            -authenticationKeyID $APP_STORE_CONNECT_KEY_ID \
-            -authenticationKeyPath /tmp/authkey.p8 \
-            DEVELOPMENT_TEAM=RW4U7HX5AH
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
       - name: Set up signing (keychain + cert + profile)
         script: |
           echo "=== Keychain setup ==="
