@@ -1,4 +1,5 @@
 import SwiftUI
+import AppIntents
 
 /// Main entry point for the Tutormeter application.
 ///
@@ -61,6 +62,9 @@ struct ContentView: View {
 
                     // MARK: Control Button
                     controlButton
+
+                    // MARK: Siri Setup
+                    siriSetup
 
                     // MARK: Siri Shortcuts Info
                     shortcutsInfo
@@ -216,6 +220,15 @@ struct ContentView: View {
         .tint(manager.isTracking ? .red : .green)
     }
 
+    private var siriSetup: some View {
+        SiriTipView(
+            intent: StartTrackingIntent(),
+            isVisible: .constant(true)
+        )
+        .siriTipViewStyle(.automatic)
+        .padding(.horizontal, 4)
+    }
+
     private var shortcutsInfo: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Siri Shortcuts")
@@ -281,7 +294,7 @@ struct ContentView: View {
 
     private var shortcutItems: [(phrase: String, icon: String)] {
         [
-            ("Hey Siri,\nAvvia Tutormeter", "mic.fill"),
+            ("Ehi Siri,\nAvvia Tutormeter", "mic.fill"),
             ("Avvia\nMonitoraggio", "speedometer"),
             ("Qual è la\nmia velocità?", "info.circle")
         ]

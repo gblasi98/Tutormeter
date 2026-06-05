@@ -120,10 +120,10 @@ struct TutormeterAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StartTrackingIntent(),
             phrases: [
-                "Start Tutormeter tracking with \(.applicationName)",
-                "Avvia monitoraggio Tutormeter con \(.applicationName)",
-                "Avvia monitoraggio Tutor con \(.applicationName)",
-                "Start speed monitoring with \(.applicationName)"
+                "Avvia monitoraggio con \(.applicationName)",
+                "Avvia \(.applicationName)",
+                "Inizia tracciamento con \(.applicationName)",
+                "Start tracking with \(.applicationName)"
             ],
             shortTitle: "Avvia Monitoraggio",
             systemImageName: "speedometer"
@@ -132,9 +132,9 @@ struct TutormeterAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: StopTrackingIntent(),
             phrases: [
-                "Stop Tutormeter tracking with \(.applicationName)",
-                "Ferma monitoraggio Tutormeter con \(.applicationName)",
-                "Stop speed monitoring with \(.applicationName)"
+                "Ferma monitoraggio con \(.applicationName)",
+                "Ferma \(.applicationName)",
+                "Stop tracking with \(.applicationName)"
             ],
             shortTitle: "Ferma Monitoraggio",
             systemImageName: "stop.circle"
@@ -143,10 +143,9 @@ struct TutormeterAppShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: GetTutormeterStatusIntent(),
             phrases: [
-                "What's my Tutormeter speed with \(.applicationName)",
-                "Qual è la mia velocità media con \(.applicationName)",
-                "Tutormeter status with \(.applicationName)",
-                "Stato Tutormeter con \(.applicationName)"
+                "Qual è la mia velocità con \(.applicationName)",
+                "Stato \(.applicationName)",
+                "What's my speed with \(.applicationName)"
             ],
             shortTitle: "Stato Tutormeter",
             systemImageName: "info.circle"
