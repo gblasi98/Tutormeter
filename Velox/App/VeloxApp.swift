@@ -13,12 +13,17 @@ import SwiftUI
 @main
 struct TutormeterApp: App {
     @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
-    @State private var trackingManager = TrackingManager.shared
+
+    init() {
+        // Register Siri voice phrases so they're indexed immediately
+        // after install, update, or first launch.
+        TutormeterAppShortcuts.updateAppShortcutParameters()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(trackingManager)
+                .environment(TrackingManager.shared)
                 .onOpenURL { url in
                     DeepLinkHandler.handle(url)
                 }

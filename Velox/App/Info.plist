@@ -50,6 +50,12 @@
 	<string>Tutormeter uses motion sensors to improve speed accuracy in tunnels and areas with poor GPS signal.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>Tutormeter integrates with Siri so you can start tracking with a voice command while driving.</string>
+	<key>INIntentsSupported</key>
+	<array>
+		<string>StartTrackingIntent</string>
+		<string>StopTrackingIntent</string>
+		<string>GetTutormeterStatusIntent</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIApplicationSceneManifest</key>
@@ -58,15 +64,6 @@
 		<false/>
 		<key>UISceneConfigurations</key>
 		<dict>
-			<key>UIWindowSceneSessionRoleApplication</key>
-			<array>
-				<dict>
-					<key>UISceneConfigurationName</key>
-					<string>Default Configuration</string>
-					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-				</dict>
-			</array>
 			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
 			<array>
 				<dict>

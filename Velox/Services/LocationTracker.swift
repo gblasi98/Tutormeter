@@ -61,9 +61,14 @@ final class LocationTracker: NSObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         locationManager.activityType = .automotiveNavigation
         locationManager.distanceFilter = kCLDistanceFilterNone
-        locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.showsBackgroundLocationIndicator = true
+
+        // allowsBackgroundLocationUpdates throws an ObjC exception unless
+        // the user has already granted Always authorization.
+        if locationManager.authorizationStatus == .authorizedAlways {
+            locationManager.allowsBackgroundLocationUpdates = true
+        }
 
         // If available, request live updates for even better accuracy
         if #available(iOS 18.0, *) {
@@ -227,6 +232,11 @@ extension LocationTracker: CLLocationManagerDelegate {
         guard newStatus != authStatus else { return }
         authStatus = newStatus
         onStatusChange?(newStatus)
+
+        // Enable background updates when Always access is granted.
+        if manager.authorizationStatus == .authorizedAlways {
+            locationManager.allowsBackgroundLocationUpdates = true
+        }
 
         print("[LocationTracker] Authorization changed: \(newStatus)")
 

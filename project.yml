@@ -83,12 +83,16 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Tutormeter needs background location access to track your speed while using navigation apps."
         NSMotionUsageDescription: "Tutormeter uses motion sensors to improve speed accuracy in tunnels and areas with poor GPS."
         NSSiriUsageDescription: "Tutormeter uses Siri to let you start tracking with a voice command."
+        INIntentsSupported:
+          - StartTrackingIntent
+          - StopTrackingIntent
+          - GetTutormeterStatusIntent
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:
-            UIWindowSceneSessionRoleApplication:
-              - UISceneConfigurationName: Default Configuration
-                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
+            CPTemplateApplicationSceneSessionRoleApplication:
+              - UISceneConfigurationName: CarPlay Configuration
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).TutormeterCarPlaySceneDelegate
 
   TutormeterTests:
     type: bundle.unit-test
