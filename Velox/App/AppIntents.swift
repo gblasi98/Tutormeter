@@ -19,7 +19,7 @@ struct StartTrackingIntent: AppIntent {
         "Starts monitoring your average speed in speed camera zones.",
         categoryName: "Navigation"
     )
-    static var openAppWhenRun: Bool = true
+    static var openAppWhenRun: Bool = false
 
     /// Optional parameter: whether to start immediately or wait for Tutor detection.
     @Parameter(
@@ -35,19 +35,30 @@ struct StartTrackingIntent: AppIntent {
 
         guard !manager.isTracking else {
             return .result(
-                dialog: "Tutormeter is already monitoring your speed."
+                dialog: "Tutormeter sta già monitorando la tua velocità."
             )
         }
 
-        manager.startTracking()
+        guard CLLocationManager.locationServicesEnabled() else {
+            return .result(
+                dialog: "Impossibile avviare il monitoraggio. Attiva i servizi di localizzazione nelle Impostazioni."
+            )
+        }
+
+        let started = manager.startTracking()
+        guard started else {
+            return .result(
+                dialog: "Impossibile avviare il monitoraggio. Controlla i permessi di localizzazione."
+            )
+        }
 
         if immediateStart {
             return .result(
-                dialog: "Tutormeter monitoring started. Your average speed will appear in the Dynamic Island."
+                dialog: "Monitoraggio Tutormeter avviato. La velocità media appare nella Dynamic Island."
             )
         } else {
             return .result(
-                dialog: "Tutormeter is ready. Monitoring will begin when a speed camera zone is detected."
+                dialog: "Tutormeter è pronto. Il monitoraggio inizierà al rilevamento di un Tutor."
             )
         }
     }
@@ -70,7 +81,7 @@ struct StopTrackingIntent: AppIntent {
 
         guard manager.isTracking else {
             return .result(
-                dialog: "Tutormeter is not currently monitoring."
+                dialog: "Tutormeter non è in monitoraggio."
             )
         }
 
@@ -78,7 +89,7 @@ struct StopTrackingIntent: AppIntent {
         let avgSpeed = Int(summary.finalAverageSpeedKmh)
 
         return .result(
-            dialog: "Monitoring stopped. Your average speed was \(avgSpeed) kilometers per hour."
+            dialog: "Monitoraggio fermato. Velocità media: \(avgSpeed) km/h."
         )
     }
 }
