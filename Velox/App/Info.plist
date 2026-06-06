@@ -19,7 +19,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>11</string>
+	<string>12</string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>UILaunchStoryboardName</key>
@@ -50,30 +50,7 @@
 	<string>Tutormeter uses motion sensors to improve speed accuracy in tunnels and areas with poor GPS signal.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>Tutormeter integrates with Siri so you can start tracking with a voice command while driving.</string>
-	<key>INIntentsSupported</key>
-	<array>
-		<string>StartTrackingIntent</string>
-		<string>StopTrackingIntent</string>
-		<string>GetTutormeterStatusIntent</string>
-	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>UIApplicationSceneManifest</key>
-	<dict>
-		<key>UIApplicationSupportsMultipleScenes</key>
-		<false/>
-		<key>UISceneConfigurations</key>
-		<dict>
-			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
-			<array>
-				<dict>
-					<key>UISceneConfigurationName</key>
-					<string>CarPlay Configuration</string>
-					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).TutormeterCarPlaySceneDelegate</string>
-				</dict>
-			</array>
-		</dict>
-	</dict>
 </dict>
 </plist>

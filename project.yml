@@ -46,20 +46,12 @@ targets:
           enabled: true
         com.apple.developer.siri:
           enabled: true
-        com.apple.developer.carplay-maps:
-          enabled: false
-        com.apple.developer.carplay-audio:
-          enabled: false
-        com.apple.developer.carplay-messaging:
-          enabled: false
-        com.apple.developer.playable-content:
-          enabled: false
     info:
       path: Velox/App/Info.plist
       properties:
         CFBundleName: Tutormeter
         CFBundleDisplayName: Tutormeter
-        CFBundleVersion: "11"
+        CFBundleVersion: "12"
         CFBundleShortVersionString: "1.0"
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
@@ -83,16 +75,6 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Tutormeter needs background location access to track your speed while using navigation apps."
         NSMotionUsageDescription: "Tutormeter uses motion sensors to improve speed accuracy in tunnels and areas with poor GPS."
         NSSiriUsageDescription: "Tutormeter uses Siri to let you start tracking with a voice command."
-        INIntentsSupported:
-          - StartTrackingIntent
-          - StopTrackingIntent
-          - GetTutormeterStatusIntent
-        UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
-          UISceneConfigurations:
-            CPTemplateApplicationSceneSessionRoleApplication:
-              - UISceneConfigurationName: CarPlay Configuration
-                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).TutormeterCarPlaySceneDelegate
 
   TutormeterTests:
     type: bundle.unit-test
