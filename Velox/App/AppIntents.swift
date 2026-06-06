@@ -207,52 +207,61 @@ final class TrackingManager {
         // inside this Task; until then the state remains .active.
         setupTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            // Bail out if stopTracking() was called before this Task began.
             guard self.isTracking else { return }
-            if let result = await calib.calibrate(using: imu) {
-                tracker.configureFilter(
-                    processNoisePos: result.noiseVariance * 0.5,
-                    processNoiseVel: result.noiseVariance * 0.8,
-                    measurementNoise: result.noiseVariance * 20.0
+
+            do {
+                if let result = await calib.calibrate(using: imu) {
+                    tracker.configureFilter(
+                        processNoisePos: result.noiseVariance * 0.5,
+                        processNoiseVel: result.noiseVariance * 0.8,
+                        measurementNoise: result.noiseVariance * 20.0
+                    )
+                }
+
+                tracker.startTracking(
+                    onFix: { [weak self] fix in
+                        guard fix.latitude.isFinite, fix.longitude.isFinite,
+                              fix.horizontalAccuracy.isFinite, fix.speed.isFinite else { return }
+                        Task { @MainActor [weak self] in
+                            self?.handleGPSFix(fix)
+                        }
+                    },
+                    onStatusChange: { [weak self] status in
+                        Task { @MainActor [weak self] in
+                            self?.authStatus = status
+                        }
+                    },
+                    onError: { [weak self] error in
+                        Task { @MainActor [weak self] in
+                            self?.handleError(error)
+                        }
+                    }
                 )
-            }
 
-            tracker.startTracking(
-                onFix: { [weak self] fix in
+                imu.start { [weak self] accel, dt in
+                    guard accel.isFinite, dt.isFinite, dt > 0 else { return }
                     Task { @MainActor [weak self] in
-                        self?.handleGPSFix(fix)
-                    }
-                },
-                onStatusChange: { [weak self] status in
-                    Task { @MainActor [weak self] in
-                        self?.authStatus = status
-                    }
-                },
-                onError: { [weak self] error in
-                    Task { @MainActor [weak self] in
-                        self?.handleError(error)
+                        self?.handleIMU(acceleration: accel, deltaTime: dt)
                     }
                 }
-            )
 
-            imu.start { [weak self] accel, dt in
-                Task { @MainActor [weak self] in
-                    self?.handleIMU(acceleration: accel, deltaTime: dt)
-                }
+                // Start Live Activity in Dynamic Island
+                let liveActivity = LiveActivityManager()
+                self.liveActivityManager = liveActivity
+                liveActivity.start(
+                    zoneType: .tutor,
+                    latitude: tracker.lastLocation?.coordinate.latitude ?? 45.0,
+                    longitude: tracker.lastLocation?.coordinate.longitude ?? 9.0
+                )
+
+                // GPS lock acquired — advance to full tracking state.
+                self.stateMachine.gpsLockAcquired()
+                self.state = self.stateMachine.currentState
+            } catch {
+                print("[TrackingManager] SetupTask failed: \(error)")
+                self.errorMessage = "Errore durante l'avvio del monitoraggio."
+                self.stopTracking()
             }
-
-            // Start Live Activity in Dynamic Island
-            let liveActivity = LiveActivityManager()
-            self.liveActivityManager = liveActivity
-            liveActivity.start(
-                zoneType: .tutor,
-                latitude: tracker.lastLocation?.coordinate.latitude ?? 45.0,
-                longitude: tracker.lastLocation?.coordinate.longitude ?? 9.0
-            )
-
-            // GPS lock acquired — advance to full tracking state.
-            self.stateMachine.gpsLockAcquired()
-            self.state = self.stateMachine.currentState
         }
 
         return true
@@ -324,9 +333,21 @@ final class TrackingManager {
 
     private func handleGPSFix(_ fix: GPSFix) {
         guard let tracker = locationTracker else { return }
-        averageSpeed = tracker.calculator.currentAverageSpeedKmh()
-        instantSpeed = tracker.calculator.instantSpeedKmh
-        confidence = tracker.calculator.confidenceLevel
+
+        let avgSpeed = tracker.calculator.currentAverageSpeedKmh()
+        let instSpeed = tracker.calculator.instantSpeedKmh
+        let conf = tracker.calculator.confidenceLevel
+
+        // Defend against NaN/Inf from Kalman filter divergence
+        guard avgSpeed.isFinite, instSpeed.isFinite, conf.isFinite else {
+            print("[TrackingManager] NaN detected in GPS fix — resetting calculator")
+            tracker.calculator.reset()
+            return
+        }
+
+        averageSpeed = avgSpeed
+        instantSpeed = instSpeed
+        confidence = conf
         state = stateMachine.currentState
 
         // Auto-evaluate GPS quality
@@ -340,17 +361,22 @@ final class TrackingManager {
 
         // Push Live Activity update
         let isLost = stateMachine.isGPSLost
+        let distance = tracker.calculator.totalDistanceMeters / 1000
+        let elapsed = tracker.calculator.elapsedTime()
+        guard distance.isFinite, elapsed.isFinite else { return }
+
         liveActivityManager?.update(
             speedKmh: averageSpeed,
             instantKmh: instantSpeed,
-            distanceKm: tracker.calculator.totalDistanceMeters / 1000,
-            elapsedSeconds: tracker.calculator.elapsedTime(),
+            distanceKm: distance,
+            elapsedSeconds: elapsed,
             confidence: confidence,
             isGPSLost: isLost
         )
     }
 
     private func handleIMU(acceleration: Double, deltaTime: TimeInterval) {
+        guard acceleration.isFinite, deltaTime.isFinite, deltaTime > 0 else { return }
         locationTracker?.feedIMU(acceleration: acceleration, deltaTime: deltaTime)
     }
 
