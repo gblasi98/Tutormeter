@@ -91,7 +91,8 @@ struct ContentView: View {
     }
 
     /// If the app was launched by the Siri StartTrackingIntent,
-    /// a UserDefaults flag is set. Clear it and start tracking.
+    /// a UserDefaults flag is set. Clear it, but do NOT start tracking
+    /// automatically — this isolates whether startTracking() via Siri crashes.
     private func handleIntentLaunch() {
         guard !hasCheckedIntentLaunch else { return }
         hasCheckedIntentLaunch = true
@@ -101,10 +102,9 @@ struct ContentView: View {
 
         UserDefaults.standard.removeObject(forKey: key)
 
-        guard !manager.isTracking else { return }
-        guard manager.authStatus.canTrack || manager.authStatus.canRequest else { return }
-
-        _ = manager.startTracking()
+        // SAFE MODE: Don't auto-start tracking. Just open the app.
+        // The user can press "Start Tracking" manually.
+        print("[ContentView] Intent launch detected — app opened, waiting for manual start.")
     }
 
     // MARK: - Subviews
