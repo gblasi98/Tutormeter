@@ -15,7 +15,7 @@ settings:
     TARGETED_DEVICE_FAMILY: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: "NO"
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: "" # Set in codemagic.yaml via environment
+    DEVELOPMENT_TEAM: "RW4U7HX5AH"
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
 targets:
@@ -51,7 +51,7 @@ targets:
       properties:
         CFBundleName: Tutormeter
         CFBundleDisplayName: Tutormeter
-        CFBundleVersion: "13"
+        CFBundleVersion: "14"
         CFBundleShortVersionString: "1.0"
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true

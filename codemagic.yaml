@@ -93,9 +93,9 @@ workflows:
         script: |
           xcodebuild archive -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
             -archivePath build/ios/archive/Tutormeter.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="iPhone Distribution: GIANMARCO BLASI (RW4U7HX5AH)" \
-             PROVISIONING_PROFILE_SPECIFIER="d0215d26-1fda-4901-8a6f-7b1924fb10fd"
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="RW4U7HX5AH" \
+            -allowProvisioningUpdates
       - name: Create export plist
         script: |
           cat > /tmp/export.plist << 'PLIST'
@@ -105,10 +105,6 @@ workflows:
           <dict>
               <key>method</key><string>app-store</string>
               <key>teamID</key><string>RW4U7HX5AH</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                  <key>com.tutormeter.app</key><string>d0215d26-1fda-4901-8a6f-7b1924fb10fd</string>
-              </dict>
           </dict>
           </plist>
           PLIST
