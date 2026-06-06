@@ -1,5 +1,4 @@
 import SwiftUI
-import AppIntents
 
 /// Main entry point for the Tutormeter application.
 ///
@@ -16,9 +15,9 @@ struct TutormeterApp: App {
     @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
 
     init() {
-        // Register Siri voice phrases so they're indexed immediately
-        // after install, update, or first launch.
-        TutormeterAppShortcuts.updateAppShortcutParameters()
+        // Siri phrases registered via AppShortcutsProvider at install time.
+        // updateAppShortcutParameters() skipped — it may conflict with
+        // Siri intent launches.
     }
 
     var body: some Scene {
@@ -63,9 +62,6 @@ struct ContentView: View {
 
                     // MARK: Control Button
                     controlButton
-
-                    // MARK: Siri Setup
-                    siriSetup
 
                     // MARK: Siri Shortcuts Info
                     shortcutsInfo
@@ -239,15 +235,6 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .tint(manager.isTracking ? .red : .green)
-    }
-
-    private var siriSetup: some View {
-        SiriTipView(
-            intent: StartTrackingIntent(),
-            isVisible: .constant(true)
-        )
-        .siriTipViewStyle(.automatic)
-        .padding(.horizontal, 4)
     }
 
     private var shortcutsInfo: some View {
