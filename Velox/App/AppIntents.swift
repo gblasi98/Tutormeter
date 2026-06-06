@@ -341,7 +341,7 @@ final class TrackingManager {
         // Defend against NaN/Inf from Kalman filter divergence
         guard avgSpeed.isFinite, instSpeed.isFinite, conf.isFinite else {
             print("[TrackingManager] NaN detected in GPS fix — resetting calculator")
-            tracker.calculator.reset()
+            tracker.resetCalculator()
             return
         }
 

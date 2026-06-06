@@ -185,6 +185,11 @@ final class LocationTracker: NSObject {
             measurementNoise: measurementNoise
         )
     }
+
+    /// Resets the speed calculator (e.g. after NaN detection).
+    func resetCalculator() {
+        speedCalculator.reset()
+    }
 }
 
 // MARK: - CLLocationManagerDelegate
