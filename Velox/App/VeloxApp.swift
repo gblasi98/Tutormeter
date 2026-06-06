@@ -12,8 +12,6 @@ import SwiftUI
 /// - Manual: Tap "Start" in the app
 @main
 struct TutormeterApp: App {
-    @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
-
     var body: some Scene {
         WindowGroup {
             ContentView()
