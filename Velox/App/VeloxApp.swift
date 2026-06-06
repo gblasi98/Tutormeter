@@ -37,6 +37,7 @@ struct TutormeterApp: App {
 struct ContentView: View {
     @Environment(TrackingManager.self) private var manager
     @State private var showAuthAlert = false
+    @State private var hasCheckedIntentLaunch = false
 
     var body: some View {
         NavigationStack {
@@ -84,6 +85,26 @@ struct ContentView: View {
                 Text("Tutormeter needs location access to calculate average speed. Enable it in Settings.")
             }
         }
+        .onAppear {
+            handleIntentLaunch()
+        }
+    }
+
+    /// If the app was launched by the Siri StartTrackingIntent,
+    /// a UserDefaults flag is set. Clear it and start tracking.
+    private func handleIntentLaunch() {
+        guard !hasCheckedIntentLaunch else { return }
+        hasCheckedIntentLaunch = true
+
+        let key = "Tutormeter.shouldStartTracking"
+        guard UserDefaults.standard.bool(forKey: key) else { return }
+
+        UserDefaults.standard.removeObject(forKey: key)
+
+        guard !manager.isTracking else { return }
+        guard manager.authStatus.canTrack || manager.authStatus.canRequest else { return }
+
+        _ = manager.startTracking()
     }
 
     // MARK: - Subviews

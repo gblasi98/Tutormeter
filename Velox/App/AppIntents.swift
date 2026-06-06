@@ -1,66 +1,37 @@
 import Foundation
 import AppIntents
-import CoreLocation
+
+// MARK: - UserDefaults Keys
+
+enum AppIntentsKeys {
+    /// Set to `true` by StartTrackingIntent to signal the UI to begin tracking.
+    static let shouldStartTracking = "Tutormeter.shouldStartTracking"
+}
 
 // MARK: - Start Tracking Intent
 
 /// Siri Shortcut to start Tutormeter speed monitoring.
 ///
-/// Usage via Siri:
-/// - "Hey Siri, start Tutormeter tracking"
-/// - "Avvia il monitoraggio Tutormeter"
-///
-/// Usage via Shortcuts app:
-/// - Add "Avvia Monitoraggio Tutor" action to any shortcut
-/// - Can be triggered by CarPlay connection automation
+/// Opens the app and signals the ContentView to begin tracking.
+/// Does NOT call startTracking() directly — the UI handles it
+/// to avoid crashes when launched from the Siri context.
 struct StartTrackingIntent: AppIntent {
     static var title: LocalizedStringResource = "Avvia Monitoraggio Tutor"
     static var description = IntentDescription(
         "Starts monitoring your average speed in speed camera zones.",
         categoryName: "Navigation"
     )
-    static var openAppWhenRun: Bool = false
-
-    /// Optional parameter: whether to start immediately or wait for Tutor detection.
-    @Parameter(
-        title: "Avvio immediato",
-        description: "Se attivato, il monitoraggio parte subito. Altrimenti attende il rilevamento di un Tutor.",
-        default: true
-    )
-    var immediateStart: Bool
+    static var openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let manager = TrackingManager.shared
+        // Just signal the app to start tracking when it opens.
+        // The ContentView handles the actual startTracking() call.
+        UserDefaults.standard.set(true, forKey: AppIntentsKeys.shouldStartTracking)
 
-        guard !manager.isTracking else {
-            return .result(
-                dialog: "Tutormeter sta già monitorando la tua velocità."
-            )
-        }
-
-        guard CLLocationManager.locationServicesEnabled() else {
-            return .result(
-                dialog: "Impossibile avviare il monitoraggio. Attiva i servizi di localizzazione nelle Impostazioni."
-            )
-        }
-
-        let started = manager.startTracking()
-        guard started else {
-            return .result(
-                dialog: "Impossibile avviare il monitoraggio. Controlla i permessi di localizzazione."
-            )
-        }
-
-        if immediateStart {
-            return .result(
-                dialog: "Monitoraggio Tutormeter avviato. La velocità media appare nella Dynamic Island."
-            )
-        } else {
-            return .result(
-                dialog: "Tutormeter è pronto. Il monitoraggio inizierà al rilevamento di un Tutor."
-            )
-        }
+        return .result(
+            dialog: "Tutormeter si sta avviando. Monitoraggio in corso."
+        )
     }
 }
 
@@ -195,9 +166,6 @@ final class TrackingManager {
 
     private init() {
         self.stateMachine = TrackingStateMachine()
-        Task {
-            await LiveActivityManager().cleanupOrphanedActivities()
-        }
     }
 
     // MARK: - Public API (called from Intents, UI, URL scheme)
