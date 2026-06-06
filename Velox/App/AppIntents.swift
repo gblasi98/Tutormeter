@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import CoreLocation
 
 // MARK: - UserDefaults Keys
 
