@@ -22,16 +22,14 @@ struct StartTrackingIntent: AppIntent {
         "Starts monitoring your average speed in speed camera zones.",
         categoryName: "Navigation"
     )
-    static var openAppWhenRun: Bool = true
+    static var openAppWhenRun: Bool = false
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Just signal the app to start tracking when it opens.
-        // The ContentView handles the actual startTracking() call.
-        UserDefaults.standard.set(true, forKey: AppIntentsKeys.shouldStartTracking)
-
+        // Minimal intent: don't open the app, don't set UserDefaults.
+        // Just return a dialog to confirm Siri integration works.
         return .result(
-            dialog: "Tutormeter si sta avviando. Monitoraggio in corso."
+            dialog: "Apro Tutormeter. Tocca Avvia Monitoraggio per iniziare."
         )
     }
 }
