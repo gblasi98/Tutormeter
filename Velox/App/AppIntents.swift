@@ -245,8 +245,7 @@ final class TrackingManager {
 
         // Cancel any pending async setup to prevent stale Task
         // from mutating state after stop.
-        setupTask?.cancel()
-        setupTask = nil
+        // (setupTask removed in safe mode — no async work to cancel)
 
         isTracking = false
         stateMachine.complete()
@@ -280,6 +279,11 @@ final class TrackingManager {
             stopTracking()
         }
     }
+
+    // MARK: - Background Task Hooks (safe mode stubs)
+
+    /// Time elapsed in the current state-machine state (seconds).
+    var stateAge: TimeInterval { stateMachine.timeInCurrentState }
 }
 
 // MARK: - Session Persistence
