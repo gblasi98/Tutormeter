@@ -75,6 +75,9 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Tutormeter needs background location access to track your speed while using navigation apps."
         NSMotionUsageDescription: "Tutormeter uses motion sensors to improve speed accuracy in tunnels and areas with poor GPS."
         NSSiriUsageDescription: "Tutormeter uses Siri to let you start tracking with a voice command."
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - tutormeter
 
   TutormeterTests:
     type: bundle.unit-test

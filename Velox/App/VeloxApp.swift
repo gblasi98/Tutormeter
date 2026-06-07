@@ -4,10 +4,6 @@ import SwiftUI
 struct TutormeterApp: App {
     @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
 
-    init() {
-        TutormeterAppShortcuts.updateAppShortcutParameters()
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()
