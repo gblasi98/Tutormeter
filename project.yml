@@ -38,6 +38,7 @@ targets:
         PRODUCT_NAME: Tutormeter
         SWIFT_OBJC_BRIDGING_HEADER: ""
         GENERATE_INFOPLIST_FILE: "NO"
+        CODE_SIGN_ENTITLEMENTS: Velox/App/Tutormeter.entitlements
     attributes:
       SystemCapabilities:
         com.apple.BackgroundModes:
@@ -51,7 +52,7 @@ targets:
       properties:
         CFBundleName: Tutormeter
         CFBundleDisplayName: Tutormeter
-        CFBundleVersion: "18"
+        CFBundleVersion: "19"
         CFBundleShortVersionString: "1.0"
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
