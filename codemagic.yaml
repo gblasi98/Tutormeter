@@ -287,4 +287,113 @@ workflows:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 | tee build.log
-          echo "Build completed with warnings treated as errors"
+           echo "Build completed with warnings treated as errors"
+
+  # ──────────────────────────────────────────
+  # Ad Hoc Build (install directly on device)
+  # ──────────────────────────────────────────
+  ios-adhoc:
+    name: iOS Ad Hoc
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      groups:
+        - ios_signing
+      xcode: "26.4"
+      vars:
+        XCODE_PROJECT: Tutormeter.xcodeproj
+        XCODE_SCHEME: Tutormeter
+    scripts:
+      - name: Install XcodeGen
+        script: brew install xcodegen
+      - name: Generate Xcode project
+        script: xcodegen generate --spec project.yml
+      - name: Run unit tests
+        script: |
+          xcodebuild test -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+      - name: Set up signing
+        script: |
+          echo "=== Keychain setup ==="
+          security create-keychain -p "temporary" build.keychain 2>/dev/null || true
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "temporary" build.keychain
+
+          echo "=== Convert XML key to PEM ==="
+          printenv CM_PRIVATE_KEY_B64 | base64 --decode > /tmp/key.xml 2>/dev/null
+          printenv CM_PRIVATE_KEY_B64 | base64 -D > /tmp/key.xml 2>/dev/null || true
+          python3 -c "
+          import re, base64
+          with open('/tmp/key.xml') as f: xml = f.read()
+          def get(tag): return base64.b64decode(re.search(f'<{tag}>(.*?)</{tag}>', xml).group(1))
+          n, e, d, p, q = get('Modulus'), get('Exponent'), get('D'), get('P'), get('Q')
+          dp, dq, iq = get('DP'), get('DQ'), get('InverseQ')
+          n_int = int.from_bytes(n, 'big'); e_int = int.from_bytes(e, 'big')
+          d_int = int.from_bytes(d, 'big'); p_int = int.from_bytes(p, 'big'); q_int = int.from_bytes(q, 'big')
+          dp_int = int.from_bytes(dp, 'big'); dq_int = int.from_bytes(dq, 'big'); iq_int = int.from_bytes(iq, 'big')
+          from cryptography.hazmat.primitives.asymmetric import rsa
+          from cryptography.hazmat.primitives import serialization
+          key = rsa.RSAPrivateNumbers(p=p_int, q=q_int, d=d_int, dmp1=dp_int, dmq1=dq_int, iqmp=iq_int,
+              public_numbers=rsa.RSAPublicNumbers(e=e_int, n=n_int)).private_key()
+          pem = key.private_bytes(encoding=serialization.Encoding.PEM, format=serialization.PrivateFormat.PKCS8,
+              encryption_algorithm=serialization.NoEncryption())
+          with open('/tmp/key.pem', 'wb') as f: f.write(pem)
+          print(f'PEM key: {len(pem)} bytes')
+          "
+
+          if [ -f /tmp/key.pem ]; then
+            echo "=== Create p12 from cert + key ==="
+            printenv CM_DIST_CERT | base64 --decode > /tmp/cert.cer 2>/dev/null
+            printenv CM_DIST_CERT | base64 -D > /tmp/cert.cer 2>/dev/null || true
+            openssl pkcs12 -export -out /tmp/proper.p12 -inkey /tmp/key.pem -in /tmp/cert.cer -legacy -passout pass:Tutormeter2026!
+            echo "=== Import into keychain ==="
+            security import /tmp/proper.p12 -k build.keychain -P Tutormeter2026! -A -T /usr/bin/codesign
+          else
+            echo "ERROR: Could not create PEM key"
+            exit 1
+          fi
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "temporary" build.keychain 2>/dev/null || true
+
+          echo "=== Install AdHoc provisioning profile ==="
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          printenv CM_ADHOC_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/29021a7f-2a70-438b-a2d4-a710fd01e428.mobileprovision 2>/dev/null
+          printenv CM_ADHOC_PROFILE | base64 -D > ~/Library/MobileDevice/Provisioning\ Profiles/29021a7f-2a70-438b-a2d4-a710fd01e428.mobileprovision 2>/dev/null || true
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "=== Identities ==="
+          security find-identity -v -p codesigning build.keychain
+      - name: Build signed archive
+        script: |
+          xcodebuild archive -project $XCODE_PROJECT -scheme $XCODE_SCHEME \
+            -archivePath build/ios/archive/Tutormeter.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="iPhone Distribution: GIANMARCO BLASI (RW4U7HX5AH)" \
+            PROVISIONING_PROFILE_SPECIFIER="29021a7f-2a70-438b-a2d4-a710fd01e428"
+      - name: Create export plist (ad-hoc)
+        script: |
+          cat > /tmp/export.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key><string>ad-hoc</string>
+              <key>teamID</key><string>RW4U7HX5AH</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.tutormeter.app</key><string>29021a7f-2a70-438b-a2d4-a710fd01e428</string>
+              </dict>
+          </dict>
+          </plist>
+          PLIST
+      - name: Export IPA
+        script: |
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Tutormeter.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /tmp/export.plist
+          find build/ios/ipa -name "*.ipa" -exec ls -la {} \;
+    artifacts:
+      - build/ios/ipa/Tutormeter.ipa
+      - build/ios/archive/Tutormeter.xcarchive
