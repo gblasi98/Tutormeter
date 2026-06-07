@@ -1,6 +1,5 @@
 import Foundation
 import AppIntents
-import UIKit
 import CoreLocation
 
 // MARK: - UserDefaults Keys
@@ -23,16 +22,13 @@ struct StartTrackingIntent: AppIntent {
         "Starts monitoring your average speed in speed camera zones.",
         categoryName: "Navigation"
     )
-    static var openAppWhenRun: Bool = false
+    static var openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Open the app via URL scheme instead of openAppWhenRun
-        // to avoid the system-level crash on Siri launch.
-        if let url = URL(string: "tutormeter://start-tracking") {
-            await UIApplication.shared.open(url)
-        }
-        return .result(dialog: "OK")
+        // Signal the UI to start tracking when the app opens.
+        UserDefaults.standard.set(true, forKey: AppIntentsKeys.shouldStartTracking)
+        return .result(dialog: "Apro Tutormeter. Il monitoraggio partira' automaticamente.")
     }
 }
 

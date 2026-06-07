@@ -2,7 +2,8 @@ import SwiftUI
 
 @main
 struct TutormeterApp: App {
-    @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
+    // Temporarily disabled to isolate Siri crash cause.
+    // @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
 
     var body: some Scene {
         WindowGroup {
@@ -10,6 +11,13 @@ struct TutormeterApp: App {
                 .environment(TrackingManager.shared)
                 .onOpenURL { url in
                     DeepLinkHandler.handle(url)
+                }
+                .onAppear {
+                    // If launched from Siri Shortcut, start tracking.
+                    if UserDefaults.standard.bool(forKey: AppIntentsKeys.shouldStartTracking) {
+                        UserDefaults.standard.removeObject(forKey: AppIntentsKeys.shouldStartTracking)
+                        TrackingManager.shared.startTracking()
+                    }
                 }
         }
     }
