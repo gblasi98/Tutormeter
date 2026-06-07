@@ -195,26 +195,3 @@ private final class ZoneMonitorDelegate: NSObject, CLLocationManagerDelegate {
         // Handled by main tracking flow.
     }
 }
-
-    // MARK: - Search
-
-    /// Finds all zones within `radius` meters of the given coordinate.
-    func zonesNear(_ coordinate: CLLocationCoordinate2D, radius: CLLocationDistance = 5000) -> [TutorZone] {
-        guard let db = database else { return [] }
-        let loc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-
-        return db.zones.filter { zone in
-            zone.startLocation.distance(from: loc) <= radius
-        }
-    }
-
-    /// Returns zones for a specific highway.
-    func zonesForHighway(_ highway: String) -> [TutorZone] {
-        database?.zones.filter { $0.highway == highway } ?? []
-    }
-
-    /// All unique highway names with Tutor zones.
-    var availableHighways: [String] {
-        Array(Set(database?.zones.map(\.highway) ?? [])).sorted()
-    }
-}
