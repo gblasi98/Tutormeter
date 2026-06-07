@@ -1,0 +1,182 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-06-07",
+  "zones": [
+    {
+      "id": "A1-N-045-052",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 45-52 dir. Sud",
+      "startLat": 45.1250, "startLon": 9.5500,
+      "endLat": 45.0680, "endLon": 9.6000,
+      "speedLimitKmh": 130, "lengthMeters": 7000
+    },
+    {
+      "id": "A1-S-052-045",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 52-45 dir. Nord",
+      "startLat": 45.0680, "startLon": 9.6000,
+      "endLat": 45.1250, "endLon": 9.5500,
+      "speedLimitKmh": 130, "lengthMeters": 7000
+    },
+    {
+      "id": "A1-N-105-115",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 105-115 dir. Sud",
+      "startLat": 44.8900, "startLon": 9.8600,
+      "endLat": 44.8100, "endLon": 9.9100,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-S-155-145",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 155-145 dir. Nord",
+      "startLat": 44.5500, "startLon": 10.7800,
+      "endLat": 44.6300, "endLon": 10.7200,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-N-250-260",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 250-260 dir. Sud",
+      "startLat": 43.7900, "startLon": 11.1500,
+      "endLat": 43.7100, "endLon": 11.2000,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-S-320-310",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 320-310 dir. Nord",
+      "startLat": 43.4100, "startLon": 11.3800,
+      "endLat": 43.4900, "endLon": 11.3200,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-N-390-400",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 390-400 dir. Sud",
+      "startLat": 41.6800, "startLon": 13.5500,
+      "endLat": 41.6000, "endLon": 13.6000,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-S-505-495",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 505-495 dir. Nord",
+      "startLat": 41.1500, "startLon": 14.2500,
+      "endLat": 41.2300, "endLon": 14.1900,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-N-560-570",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 560-570 dir. Sud",
+      "startLat": 40.9500, "startLon": 14.5200,
+      "endLat": 40.8700, "endLon": 14.5700,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A1-S-650-640",
+      "highway": "A1",
+      "name": "A1 Milano-Napoli, km 650-640 dir. Nord",
+      "startLat": 40.6500, "startLon": 14.8000,
+      "endLat": 40.7300, "endLon": 14.7400,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A4-E-225-235",
+      "highway": "A4",
+      "name": "A4 Torino-Trieste, km 225-235 dir. Est",
+      "startLat": 45.4500, "startLon": 10.2000,
+      "endLat": 45.4300, "endLon": 10.3500,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A4-W-300-290",
+      "highway": "A4",
+      "name": "A4 Torino-Trieste, km 300-290 dir. Ovest",
+      "startLat": 45.4400, "startLon": 11.8500,
+      "endLat": 45.4500, "endLon": 11.7200,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A4-E-380-392",
+      "highway": "A4",
+      "name": "A4 Torino-Trieste, km 380-392 dir. Est",
+      "startLat": 45.6400, "startLon": 13.0500,
+      "endLat": 45.6800, "endLon": 13.2200,
+      "speedLimitKmh": 130, "lengthMeters": 12000
+    },
+    {
+      "id": "A4-W-392-380",
+      "highway": "A4",
+      "name": "A4 Torino-Trieste, km 392-380 dir. Ovest",
+      "startLat": 45.6800, "startLon": 13.2200,
+      "endLat": 45.6400, "endLon": 13.0500,
+      "speedLimitKmh": 130, "lengthMeters": 12000
+    },
+    {
+      "id": "A14-S-045-060",
+      "highway": "A14",
+      "name": "A14 Bologna-Taranto, km 45-60 dir. Sud",
+      "startLat": 44.4800, "startLon": 11.3800,
+      "endLat": 44.3500, "endLon": 11.5000,
+      "speedLimitKmh": 130, "lengthMeters": 15000
+    },
+    {
+      "id": "A14-N-140-125",
+      "highway": "A14",
+      "name": "A14 Bologna-Taranto, km 140-125 dir. Nord",
+      "startLat": 44.0500, "startLon": 12.4800,
+      "endLat": 44.1700, "endLon": 12.4000,
+      "speedLimitKmh": 130, "lengthMeters": 15000
+    },
+    {
+      "id": "A14-S-220-235",
+      "highway": "A14",
+      "name": "A14 Bologna-Taranto, km 220-235 dir. Sud",
+      "startLat": 43.5800, "startLon": 13.2000,
+      "endLat": 43.4500, "endLon": 13.2800,
+      "speedLimitKmh": 130, "lengthMeters": 15000
+    },
+    {
+      "id": "A14-N-350-335",
+      "highway": "A14",
+      "name": "A14 Bologna-Taranto, km 350-335 dir. Nord",
+      "startLat": 42.1000, "startLon": 14.5000,
+      "endLat": 42.2200, "endLon": 14.4200,
+      "speedLimitKmh": 130, "lengthMeters": 15000
+    },
+    {
+      "id": "A22-N-120-130",
+      "highway": "A22",
+      "name": "A22 Brennero-Modena, km 120-130 dir. Sud",
+      "startLat": 45.8500, "startLon": 11.0500,
+      "endLat": 45.7700, "endLon": 11.1000,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A22-S-235-225",
+      "highway": "A22",
+      "name": "A22 Brennero-Modena, km 235-225 dir. Nord",
+      "startLat": 45.3500, "startLon": 10.8800,
+      "endLat": 45.4300, "endLon": 10.8200,
+      "speedLimitKmh": 130, "lengthMeters": 10000
+    },
+    {
+      "id": "A26-S-070-080",
+      "highway": "A26",
+      "name": "A26 Voltri-Gravellona, km 70-80 dir. Nord",
+      "startLat": 44.6500, "startLon": 8.7500,
+      "endLat": 44.7300, "endLon": 8.7000,
+      "speedLimitKmh": 110, "lengthMeters": 10000
+    },
+    {
+      "id": "A26-N-080-070",
+      "highway": "A26",
+      "name": "A26 Voltri-Gravellona, km 80-70 dir. Sud",
+      "startLat": 44.7300, "startLon": 8.7000,
+      "endLat": 44.6500, "endLon": 8.7500,
+      "speedLimitKmh": 110, "lengthMeters": 10000
+    }
+  ]
+}

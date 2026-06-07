@@ -189,6 +189,9 @@ final class TrackingManager {
         stateMachine.start()
         state = stateMachine.currentState
 
+        // Stop idle zone monitoring — full tracking takes over GPS.
+        TutorZoneManager.shared.stopMonitoring()
+
         self.locationTracker = tracker
         let imu = IMUFilter()
         self.imuFilter = imu
@@ -313,6 +316,11 @@ final class TrackingManager {
         averageSpeed = 0
         instantSpeed = 0
         confidence = 0
+
+        // Resume idle zone monitoring.
+        if TutorZoneManager.shared.isAutoStartEnabled {
+            TutorZoneManager.shared.startMonitoring()
+        }
 
         return summary
     }

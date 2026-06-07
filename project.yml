@@ -31,6 +31,8 @@ targets:
         type: group
       - path: Resources
         type: group
+      - path: Velox/Resources
+        type: group
     settings:
       base:
         INFOPLIST_FILE: Velox/App/Info.plist
@@ -52,7 +54,7 @@ targets:
       properties:
         CFBundleName: Tutormeter
         CFBundleDisplayName: Tutormeter
-        CFBundleVersion: "21"
+        CFBundleVersion: "22"
         CFBundleShortVersionString: "1.0"
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true

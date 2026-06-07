@@ -24,6 +24,14 @@ final class TutormeterAppDelegate: NSObject, UIApplicationDelegate {
         // Register background tasks
         backgroundTaskManager.registerTasks()
 
+        // Load Tutor zone database
+        TutorZoneManager.shared.loadDatabase()
+
+        // Start idle zone monitoring if auto-start is enabled
+        if TutorZoneManager.shared.isAutoStartEnabled {
+            TutorZoneManager.shared.startMonitoring()
+        }
+
         // Attempt session recovery
         attemptSessionRecovery()
 

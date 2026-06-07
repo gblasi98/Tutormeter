@@ -38,6 +38,7 @@ struct ContentView: View {
                     }
 
                     Spacer(minLength: 16)
+                    tutorZoneSection
                     controlButton
                     shortcutsInfo
                 }
@@ -188,6 +189,70 @@ struct ContentView: View {
             }
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Tutor Zone Section
+
+    @State private var autoStartEnabled = TutorZoneManager.shared.isAutoStartEnabled
+
+    private var tutorZoneSection: some View {
+        VStack(spacing: 8) {
+            // Toggle
+            HStack {
+                Image(systemName: "speedometer")
+                    .foregroundStyle(.blue)
+                Toggle("Avvio automatico nei Tutor", isOn: $autoStartEnabled)
+                    .font(.subheadline)
+                    .onChange(of: autoStartEnabled) { _, newValue in
+                        let zoneMgr = TutorZoneManager.shared
+                        zoneMgr.isAutoStartEnabled = newValue
+                        if newValue {
+                            zoneMgr.startMonitoring()
+                        } else {
+                            zoneMgr.stopMonitoring()
+                        }
+                    }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            // Active zone indicator
+            if let zone = TutorZoneManager.shared.activeZone {
+                HStack(spacing: 6) {
+                    Image(systemName: "location.fill")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                    Text(zone.highway)
+                        .font(.caption.weight(.semibold))
+                    Text("·")
+                        .foregroundStyle(.secondary)
+                    Text("\(zone.speedLimitKmh) km/h")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(.green.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .transition(.opacity)
+                .animation(.easeInOut, value: TutorZoneManager.shared.activeZone?.id)
+            }
+
+            // Monitoring status indicator
+            if TutorZoneManager.shared.isMonitoring && !manager.isTracking {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 6, height: 6)
+                    Text("In ascolto Tutor")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+            }
+        }
     }
 
     // MARK: - Computed
