@@ -179,21 +179,22 @@ final class BackgroundTaskManager {
             SessionStore().clearSessionState()
         }
 
-        // LiveActivity refresh disabled in safe mode.
+        // Re-publish current state to the Live Activity so it doesn't dim.
+        manager.refreshLiveActivity()
     }
 
     /// Performs heavier cleanup operations.
     ///
     /// Responsibilities:
     /// - End orphaned Live Activities.
-    /// - Compact the state-machine transition history (handled by StateMachine itself).
+    /// - Compact the state-machine transition history.
     /// - Purge TutorRecord entries older than `backgroundOldRecordAgeSeconds`.
     private func performCleanupMaintenance() async {
-        // 1. Clean up orphaned Live Activities (safe mode: no-op)
-        // await LiveActivityManager().cleanupOrphanedActivities()
+        // 1. Clean up orphaned Live Activities
+        await LiveActivityManager().cleanupOrphanedActivities()
 
-        // 2. Compact state-machine history (handled by StateMachine itself)
-        // TrackingManager.shared.compactStateHistory()
+        // 2. Compact state-machine history
+        TrackingManager.shared.compactStateHistory()
 
         // 3. Purge old TutorRecord rows from SwiftData
         await purgeOldTutorRecords()

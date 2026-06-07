@@ -2,8 +2,7 @@ import SwiftUI
 
 @main
 struct TutormeterApp: App {
-    // Temporarily disabled to isolate Siri crash cause.
-    // @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
+    @UIApplicationDelegateAdaptor(TutormeterAppDelegate.self) var appDelegate
 
     var body: some Scene {
         WindowGroup {
@@ -11,13 +10,6 @@ struct TutormeterApp: App {
                 .environment(TrackingManager.shared)
                 .onOpenURL { url in
                     DeepLinkHandler.handle(url)
-                }
-                .onAppear {
-                    // Clear Siri launch flag (tracking start deferred
-                    // until we confirm Siri app-open works without crash).
-                    if UserDefaults.standard.bool(forKey: AppIntentsKeys.shouldStartTracking) {
-                        UserDefaults.standard.removeObject(forKey: AppIntentsKeys.shouldStartTracking)
-                    }
                 }
         }
     }
@@ -28,6 +20,7 @@ struct TutormeterApp: App {
 struct ContentView: View {
     @Environment(TrackingManager.self) private var manager
     @State private var showAuthAlert = false
+    @State private var hasCheckedIntentLaunch = false
 
     var body: some View {
         NavigationStack {
@@ -52,17 +45,37 @@ struct ContentView: View {
                 .padding(.vertical, 24)
             }
             .navigationTitle("Tutormeter")
-            .alert("Location Access Required", isPresented: $showAuthAlert) {
-                Button("Open Settings") {
+            .alert("Accesso alla posizione richiesto", isPresented: $showAuthAlert) {
+                Button("Apri Impostazioni") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(url)
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button("Annulla", role: .cancel) {}
             } message: {
-                Text("Tutormeter needs location access to calculate average speed. Enable it in Settings.")
+                Text("Tutormeter ha bisogno di accedere alla posizione per calcolare la velocità media. Abilita l'accesso nelle Impostazioni.")
             }
         }
+        .onAppear {
+            handleIntentLaunch()
+        }
+    }
+
+    /// If the app was launched by the Siri StartTrackingIntent,
+    /// a UserDefaults flag is set. Clear it and start tracking.
+    private func handleIntentLaunch() {
+        guard !hasCheckedIntentLaunch else { return }
+        hasCheckedIntentLaunch = true
+
+        let key = "Tutormeter.shouldStartTracking"
+        guard UserDefaults.standard.bool(forKey: key) else { return }
+
+        UserDefaults.standard.removeObject(forKey: key)
+
+        guard !manager.isTracking else { return }
+        guard manager.authStatus.canTrack || manager.authStatus.canRequest else { return }
+
+        _ = manager.startTracking()
     }
 
     // MARK: - Subviews
