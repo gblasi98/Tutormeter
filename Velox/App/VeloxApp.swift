@@ -13,10 +13,10 @@ struct TutormeterApp: App {
                     DeepLinkHandler.handle(url)
                 }
                 .onAppear {
-                    // If launched from Siri Shortcut, start tracking.
+                    // Clear Siri launch flag (tracking start deferred
+                    // until we confirm Siri app-open works without crash).
                     if UserDefaults.standard.bool(forKey: AppIntentsKeys.shouldStartTracking) {
                         UserDefaults.standard.removeObject(forKey: AppIntentsKeys.shouldStartTracking)
-                        TrackingManager.shared.startTracking()
                     }
                 }
         }
